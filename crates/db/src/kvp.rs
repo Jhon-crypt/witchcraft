@@ -60,7 +60,7 @@ impl KeyValueStore {
 
     query! {
         async fn write_kvp_inner(key: String, value: String) -> Result<()> {
-            INSERT OR REPLACE INTO kv_store(key, value) VALUES ((?), (?))
+            INSERT OR REPLACE INTO kv_store(key, value) VALUES (?, ?)
         }
     }
 
@@ -129,7 +129,7 @@ impl GlobalKeyValueStore {
 
     query! {
         async fn write_kvp_inner(key: String, value: String) -> Result<()> {
-            INSERT OR REPLACE INTO kv_store(key, value) VALUES ((?), (?))
+            INSERT OR REPLACE INTO kv_store(key, value) VALUES (?, ?)
         }
     }
 

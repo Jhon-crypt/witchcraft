@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use client::TelemetrySettings;
 use fs::Fs;
-use gpui::{Action, App, IntoElement};
+use gpui::{Action, App, FontWeight, IntoElement};
 use project::project_settings::ProjectSettings;
 use settings::{BaseKeymap, Settings, update_settings_file};
 use theme::{
@@ -10,7 +10,7 @@ use theme::{
     ThemeSettings,
 };
 use ui::{
-    Divider, ParentElement as _, StatefulInteractiveElement, SwitchField, TintColor,
+    ParentElement as _, StatefulInteractiveElement, SwitchField, TintColor,
     ToggleButtonGroup, ToggleButtonGroupSize, ToggleButtonSimple, ToggleButtonWithIcon, Tooltip,
     prelude::*, rems_from_px,
 };
@@ -50,9 +50,21 @@ fn render_theme_section(tab_index: &mut isize, cx: &mut App) -> impl IntoElement
         });
 
     return v_flex()
-        .gap_2()
+        .gap_6()
+        .pt_4()
+                .child(
+                    Label::new("Theme")
+                        .size(LabelSize::Default)
+                        .weight(FontWeight::MEDIUM)
+                )
         .child(
-            h_flex().justify_between().child(Label::new("Theme")).child(
+            h_flex()
+                .justify_between()
+                .items_center()
+                .child(
+                    div()
+                )
+                .child(
                 ToggleButtonGroup::single_row(
                     "theme-selector-onboarding-dark-light",
                     [
@@ -231,12 +243,12 @@ fn render_telemetry_section(tab_index: &mut isize, cx: &App) -> impl IntoElement
     let fs = <dyn Fs>::global(cx);
 
     v_flex()
-        .gap_4()
+        .gap_6()
         .child(
             SwitchField::new(
                 "onboarding-telemetry-metrics",
                 None::<&str>,
-                Some("Help improve Zed by sending anonymous usage data".into()),
+                Some("Help improve Witchcraft by sending anonymous usage data".into()),
                 if TelemetrySettings::get_global(cx).metrics {
                     ui::ToggleState::Selected
                 } else {
@@ -276,7 +288,7 @@ fn render_telemetry_section(tab_index: &mut isize, cx: &App) -> impl IntoElement
                 "onboarding-telemetry-crash-reports",
                 None::<&str>,
                 Some(
-                    "Help fix Zed by sending crash reports so we can fix critical issues fast"
+                    "Help fix Witchcraft by sending crash reports so we can fix critical issues fast"
                         .into(),
                 ),
                 if TelemetrySettings::get_global(cx).diagnostics {
@@ -326,7 +338,14 @@ fn render_base_keymap_section(tab_index: &mut isize, cx: &mut App) -> impl IntoE
         BaseKeymap::TextMate | BaseKeymap::None => None,
     };
 
-    return v_flex().gap_2().child(Label::new("Base Keymap")).child(
+    return v_flex()
+        .gap_6()
+        .child(
+            Label::new("Base Keymap")
+                .size(LabelSize::Default)
+                .weight(FontWeight::MEDIUM)
+        )
+        .child(
         ToggleButtonGroup::two_rows(
             "base_keymap_selection",
             [
@@ -417,12 +436,12 @@ fn render_worktree_auto_trust_switch(tab_index: &mut isize, cx: &mut App) -> imp
         ui::ToggleState::Unselected
     };
 
-    let tooltip_description = "Zed can only allow services like language servers, project settings, and MCP servers to run after you mark a new project as trusted.";
+    let tooltip_description = "Witchcraft can only allow services like language servers, project settings, and MCP servers to run after you mark a new project as trusted.";
 
     SwitchField::new(
         "onboarding-auto-trust-worktrees",
         Some("Trust All Projects By Default"),
-        Some("Automatically mark all new projects as trusted to unlock all Zed's features".into()),
+        Some("Automatically mark all new projects as trusted to unlock all Witchcraft's features".into()),
         toggle_state,
         {
             let fs = <dyn Fs>::global(cx);
@@ -498,33 +517,50 @@ fn render_import_settings_section(tab_index: &mut isize, cx: &mut App) -> impl I
         render_setting_import_button(*tab_index - 1, label, action, imported)
     });
 
-    h_flex()
-        .gap_2()
-        .flex_wrap()
-        .justify_between()
+    v_flex()
+        .gap_4()
         .child(
-            v_flex()
-                .gap_0p5()
-                .max_w_5_6()
-                .child(Label::new("Import Settings"))
-                .child(
-                    Label::new("Automatically pull your settings from other editors")
-                        .color(Color::Muted),
-                ),
+            Label::new("Import Settings")
+                .size(LabelSize::Default)
+                .weight(FontWeight::MEDIUM)
         )
-        .child(h_flex().gap_1().child(vscode).child(cursor))
+        .child(
+            Label::new("Automatically pull your settings from other editors")
+                .color(Color::Muted)
+                .size(LabelSize::Small),
+        )
+        .child(
+            h_flex()
+                .gap_2()
+                .mt_2()
+                .child(vscode)
+                .child(cursor)
+        )
 }
 
 pub(crate) fn render_basics_page(cx: &mut App) -> impl IntoElement {
     let mut tab_index = 0;
     v_flex()
         .id("basics-page")
-        .gap_6()
-        .child(render_theme_section(&mut tab_index, cx))
-        .child(render_base_keymap_section(&mut tab_index, cx))
-        .child(render_import_settings_section(&mut tab_index, cx))
-        .child(render_vim_mode_switch(&mut tab_index, cx))
-        .child(render_worktree_auto_trust_switch(&mut tab_index, cx))
-        .child(Divider::horizontal().color(ui::DividerColor::BorderVariant))
-        .child(render_telemetry_section(&mut tab_index, cx))
+        .gap_16()
+        .child(
+            v_flex()
+                .gap_6()
+                .child(render_theme_section(&mut tab_index, cx))
+                .child(render_base_keymap_section(&mut tab_index, cx))
+        )
+        .child(
+            v_flex()
+                .gap_6()
+                .child(render_import_settings_section(&mut tab_index, cx))
+                .child(render_vim_mode_switch(&mut tab_index, cx))
+                .child(render_worktree_auto_trust_switch(&mut tab_index, cx))
+        )
+        .child(
+            div()
+                .pt_8()
+                .border_t_1()
+                .border_color(cx.theme().colors().border_variant)
+                .child(render_telemetry_section(&mut tab_index, cx))
+        )
 }

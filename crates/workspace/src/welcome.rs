@@ -25,7 +25,7 @@ pub struct OpenRecentProject {
 actions!(
     zed,
     [
-        /// Show the Zed welcome screen
+        /// Show the Witchcraft welcome screen
         ShowWelcome
     ]
 );

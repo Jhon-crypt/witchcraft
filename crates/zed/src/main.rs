@@ -307,7 +307,7 @@ fn main() {
         .spawn(crashes::init(InitCrashHandler {
             session_id,
             zed_version: app_version.to_string(),
-            binary: "zed".to_string(),
+            binary: "witchcraft".to_string(),
             release_channel: release_channel::RELEASE_CHANNEL_NAME.clone(),
             commit_sha: app_commit_sha
                 .as_ref()
@@ -340,7 +340,7 @@ fn main() {
         }
     };
     if failed_single_instance_check {
-        println!("zed is already running");
+        println!("witchcraft is already running");
         return;
     }
 
@@ -1355,7 +1355,7 @@ fn stdout_is_a_pty() -> bool {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "zed", disable_version_flag = true, max_term_width = 100)]
+#[command(name = "witchcraft", disable_version_flag = true, max_term_width = 100)]
 struct Args {
     /// A sequence of space-separated paths or urls that you want to open.
     ///

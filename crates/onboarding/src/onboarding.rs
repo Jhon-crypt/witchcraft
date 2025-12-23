@@ -4,7 +4,7 @@ use db::kvp::KEY_VALUE_STORE;
 use fs::Fs;
 use gpui::{
     Action, AnyElement, App, AppContext, AsyncWindowContext, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, Global, IntoElement, KeyContext, Render, ScrollHandle, SharedString,
+    FocusHandle, Focusable, FontWeight, Global, IntoElement, KeyContext, Render, ScrollHandle, SharedString,
     Subscription, Task, WeakEntity, Window, actions,
 };
 use notifications::status_toast::{StatusToast, ToastIcon};
@@ -13,7 +13,7 @@ use serde::Deserialize;
 use settings::{SettingsStore, VsCodeSettingsSource};
 use std::sync::Arc;
 use ui::{
-    Divider, KeyBinding, ParentElement as _, StatefulInteractiveElement, Vector, VectorName,
+    KeyBinding, ParentElement as _, Vector, VectorName,
     WithScrollbar as _, prelude::*, rems_from_px,
 };
 pub use workspace::welcome::ShowWelcome;
@@ -63,7 +63,9 @@ actions!(
         /// Open the user account in zed.dev while in the onboarding flow.
         OpenAccount,
         /// Resets the welcome screen hints to their initial state.
-        ResetHints
+        ResetHints,
+        /// Continue from welcome page to setup page.
+        Continue
     ]
 );
 
@@ -201,11 +203,17 @@ pub fn show_onboarding_view(app_state: Arc<AppState>, cx: &mut App) -> Task<anyh
     )
 }
 
+enum OnboardingPage {
+    Welcome,
+    Setup,
+}
+
 struct Onboarding {
     workspace: WeakEntity<Workspace>,
     focus_handle: FocusHandle,
     user_store: Entity<UserStore>,
     scroll_handle: ScrollHandle,
+    page: OnboardingPage,
     _settings_subscription: Subscription,
 }
 
@@ -226,6 +234,7 @@ impl Onboarding {
                 workspace: workspace.weak_handle(),
                 focus_handle: cx.focus_handle(),
                 scroll_handle: ScrollHandle::new(),
+                page: OnboardingPage::Welcome,
                 user_store: workspace.user_store().clone(),
                 _settings_subscription: cx
                     .observe_global::<SettingsStore>(move |_, cx| cx.notify()),
@@ -236,6 +245,11 @@ impl Onboarding {
     fn on_finish(_: &Finish, _: &mut Window, cx: &mut App) {
         telemetry::event!("Finish Setup");
         go_to_welcome_page(cx);
+    }
+
+    fn on_continue(this: &mut Self, _: &Continue, _: &mut Window, cx: &mut Context<Self>) {
+        this.page = OnboardingPage::Setup;
+        cx.notify();
     }
 
     fn handle_sign_in(_: &SignIn, window: &mut Window, cx: &mut App) {
@@ -253,6 +267,131 @@ impl Onboarding {
 
     fn handle_open_account(_: &OpenAccount, _: &mut Window, cx: &mut App) {
         cx.open_url(&zed_urls::account_url(cx))
+    }
+
+    fn render_welcome_page(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap_12()
+            .child(
+                v_flex()
+                    .gap_8()
+                    .items_center()
+                    .max_w(Rems(32.0))
+                    .px_16()
+                    .child(
+                        // App Icon/Logo
+                        Vector::square(VectorName::ZedLogo, rems(6.0))
+                            .color(Color::Default)
+                    )
+                    .child(
+                        Headline::new("Welcome to Witchcraft")
+                            .size(HeadlineSize::XLarge),
+                    )
+                    .child(
+                        div()
+                            .text_center()
+                            .child(
+                                Label::new("Witchcraft is a high-performance, GPU-accelerated code editor built for the modern development workflow. It combines the speed and responsiveness you need with powerful collaboration features and an extensible architecture.")
+                                    .color(Color::Muted)
+                                    .size(LabelSize::Default),
+                            ),
+                    )
+                    .child(
+                        Button::new("continue", "Continue")
+                            .style(ButtonStyle::Filled)
+                            .size(ButtonSize::Large)
+                            .width(Rems(12.0))
+                            .key_binding(
+                                KeyBinding::for_action_in(
+                                    &Continue,
+                                    &self.focus_handle,
+                                    cx,
+                                )
+                                .size(rems_from_px(12.)),
+                            )
+                            .on_click(|_, window, cx| {
+                                window.dispatch_action(Continue.boxed_clone(), cx);
+                            }),
+                    ),
+            )
+            .child(
+                // Pagination dots at bottom
+                h_flex()
+                    .gap_2()
+                    .child(
+                        div()
+                            .size(rems(0.5))
+                            .rounded_full()
+                            .bg(cx.theme().colors().text)
+                    )
+                    .child(
+                        div()
+                            .size(rems(0.5))
+                            .rounded_full()
+                            .bg(cx.theme().colors().text.opacity(0.3))
+                    )
+            )
+    }
+
+    fn render_setup_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap_12()
+            .child(
+                v_flex()
+                    .id("onboarding-content")
+                    .gap_8()
+                    .items_center()
+                    .max_w(Rems(40.0))
+                    .px_16()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.scroll_handle)
+                    .child(self.render_page(cx))
+                    .child(
+                        Button::new("finish_setup", "Complete")
+                            .style(ButtonStyle::Filled)
+                            .size(ButtonSize::Large)
+                            .width(Rems(12.0))
+                            .key_binding(
+                                KeyBinding::for_action_in(
+                                    &Finish,
+                                    &self.focus_handle,
+                                    cx,
+                                )
+                                .size(rems_from_px(12.)),
+                            )
+                            .on_click(|_event: &gpui::ClickEvent, window: &mut Window, cx: &mut App| {
+                                window.dispatch_action(Finish.boxed_clone(), cx);
+                            }),
+                    ),
+            )
+            .child(
+                // Pagination dots at bottom
+                h_flex()
+                    .gap_2()
+                    .child(
+                        div()
+                            .size(rems(0.5))
+                            .rounded_full()
+                            .bg(cx.theme().colors().text.opacity(0.3))
+                    )
+                    .child(
+                        div()
+                            .size(rems(0.5))
+                            .rounded_full()
+                            .bg(cx.theme().colors().text)
+                    )
+            )
+            .vertical_scrollbar_for(&self.scroll_handle, window, cx)
     }
 
     fn render_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
@@ -274,6 +413,7 @@ impl Render for Onboarding {
             .size_full()
             .bg(cx.theme().colors().editor_background)
             .on_action(Self::on_finish)
+            .on_action(cx.listener(Self::on_continue))
             .on_action(Self::handle_sign_in)
             .on_action(Self::handle_open_account)
             .on_action(cx.listener(|_, _: &menu::SelectNext, window, cx| {
@@ -286,65 +426,14 @@ impl Render for Onboarding {
             }))
             .child(
                 div()
-                    .max_w(Rems(48.0))
                     .size_full()
                     .mx_auto()
                     .child(
-                        v_flex()
-                            .id("page-content")
-                            .m_auto()
-                            .p_12()
-                            .size_full()
-                            .max_w_full()
-                            .min_w_0()
-                            .gap_6()
-                            .overflow_y_scroll()
-                            .child(
-                                h_flex()
-                                    .w_full()
-                                    .gap_4()
-                                    .justify_between()
-                                    .child(
-                                        h_flex()
-                                            .gap_4()
-                                            .child(Vector::square(VectorName::ZedLogo, rems(2.5)))
-                                            .child(
-                                                v_flex()
-                                                    .child(
-                                                        Headline::new("Welcome to Witchcraft")
-                                                            .size(HeadlineSize::Small),
-                                                    )
-                                                    .child(
-                                                        Label::new("The editor for what's next")
-                                                            .color(Color::Muted)
-                                                            .size(LabelSize::Small)
-                                                            .italic(),
-                                                    ),
-                                            ),
-                                    )
-                                    .child({
-                                        Button::new("finish_setup", "Finish Setup")
-                                            .style(ButtonStyle::Filled)
-                                            .size(ButtonSize::Medium)
-                                            .width(Rems(12.0))
-                                            .key_binding(
-                                                KeyBinding::for_action_in(
-                                                    &Finish,
-                                                    &self.focus_handle,
-                                                    cx,
-                                                )
-                                                .size(rems_from_px(12.)),
-                                            )
-                                            .on_click(|_, window, cx| {
-                                                window.dispatch_action(Finish.boxed_clone(), cx);
-                                            })
-                                    }),
-                            )
-                            .child(Divider::horizontal().color(ui::DividerColor::BorderVariant))
-                            .child(self.render_page(cx))
-                            .track_scroll(&self.scroll_handle),
-                    )
-                    .vertical_scrollbar_for(&self.scroll_handle, window, cx),
+                        match self.page {
+                            OnboardingPage::Welcome => self.render_welcome_page(window, cx).into_any_element(),
+                            OnboardingPage::Setup => self.render_setup_page(window, cx).into_any_element(),
+                        }
+                    ),
             )
     }
 }
@@ -386,6 +475,7 @@ impl Item for Onboarding {
             workspace: self.workspace.clone(),
             user_store: self.user_store.clone(),
             scroll_handle: ScrollHandle::new(),
+            page: OnboardingPage::Welcome,
             focus_handle: cx.focus_handle(),
             _settings_subscription: cx.observe_global::<SettingsStore>(move |_, cx| cx.notify()),
         })))

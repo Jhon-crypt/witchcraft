@@ -296,7 +296,7 @@ impl Onboarding {
                         div()
                             .text_center()
                             .child(
-                                Label::new("Witchcraft is a high-performance, GPU-accelerated code editor built for the modern development workflow. It combines the speed and responsiveness you need with powerful collaboration features and an extensible architecture.")
+                                Label::new("Witchcraft is an Ai native high-performance, GPU-accelerated minimal code editor built on top of Zed for the modern development workflow. It combines the speed, responsiveness and open source ai models you can build with for free.")
                                     .color(Color::Muted)
                                     .size(LabelSize::Default),
                             ),
@@ -507,7 +507,7 @@ fn go_to_welcome_page(cx: &mut App) {
                 let _ = item.downcast::<WelcomePage>()?;
                 Some(idx)
             });
-
+ 
             if let Some(idx) = idx {
                 pane.activate_item(idx, true, true, window, cx);
             } else {

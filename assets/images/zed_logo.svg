@@ -1,10 +1,30 @@
 <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_1957_1318)">
-<path fill-rule="evenodd" clip-rule="evenodd" d="M9 6C7.34315 6 6 7.34315 6 9V75H0V9C0 4.02944 4.02944 0 9 0H89.3787C93.3878 0 95.3955 4.84715 92.5607 7.68198L43.0551 57.1875H57V51H63V58.6875C63 61.1728 60.9853 63.1875 58.5 63.1875H37.0551L26.7426 73.5H73.5V36H79.5V73.5C79.5 76.8137 76.8137 79.5 73.5 79.5H20.7426L10.2426 90H87C88.6569 90 90 88.6569 90 87V21H96V87C96 91.9706 91.9706 96 87 96H6.62132C2.61224 96 0.604504 91.1529 3.43934 88.318L52.7574 39H39V45H33V37.5C33 35.0147 35.0147 33 37.5 33H58.7574L69.2574 22.5H22.5V60H16.5V22.5C16.5 19.1863 19.1863 16.5 22.5 16.5H75.2574L85.7574 6H9Z" fill="black"/>
-</g>
-<defs>
-<clipPath id="clip0_1957_1318">
-<rect width="96" height="96" fill="white"/>
-</clipPath>
-</defs>
+  <!-- Sword (left side) -->
+  <!-- Blade -->
+  <path d="M18 12 L22 12 L22 60 L18 60 Z" fill="black"/>
+  <!-- Point -->
+  <path d="M18 12 L20 8 L22 12 Z" fill="black"/>
+  <!-- Crossguard -->
+  <rect x="16" y="28" width="8" height="2" fill="black"/>
+  <!-- Hilt -->
+  <rect x="19" y="60" width="2" height="12" fill="black"/>
+  <!-- Pommel -->
+  <circle cx="20" cy="76" r="2.5" fill="black"/>
+  
+  <!-- Double-bladed Axe (right side) -->
+  <!-- Top blade (crescent facing left) -->
+  <path d="M72 20 Q76 24 72 28 Q68 24 72 20 Z" fill="black"/>
+  <!-- Bottom blade (crescent facing right) -->
+  <path d="M72 68 Q76 64 72 60 Q68 64 72 68 Z" fill="black"/>
+  <!-- Handle -->
+  <rect x="71" y="28" width="2" height="40" fill="black"/>
+  
+  <!-- Bidirectional Arrows -->
+  <!-- Arrow from sword to axe (curved down and right) -->
+  <path d="M28 36 Q48 48 68 36" stroke="black" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M64 34 L68 36 L65 38" stroke="black" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Arrow from axe to sword (curved up and left) -->
+  <path d="M68 60 Q48 48 28 60" stroke="black" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M32 58 L28 60 L31 62" stroke="black" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

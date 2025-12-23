@@ -53,19 +53,23 @@ pub async fn open_db<M: Migrator + 'static>(db_dir: &Path, scope: &str) -> Threa
     let connection = maybe!(async {
         smol::fs::create_dir_all(&main_db_dir)
             .await
-            .context("Could not create db directory")
+            .context(format!("Could not create db directory at {}", main_db_dir.display()))
             .log_err()?;
         let db_path = main_db_dir.join(Path::new(DB_FILE_NAME));
+        log::debug!("Attempting to open database at: {}", db_path.display());
         open_main_db::<M>(&db_path).await
     })
     .await;
 
     if let Some(connection) = connection {
+        // Clear the error flag if we successfully opened the database
+        ALL_FILE_DB_FAILED.store(false, Ordering::Release);
         return connection;
     }
 
     // Set another static ref so that we can escalate the notification
     ALL_FILE_DB_FAILED.store(true, Ordering::Release);
+    log::warn!("Failed to open database file, falling back to in-memory database");
 
     // If still failed, create an in memory db with a known name
     open_fallback_db::<M>().await
@@ -73,12 +77,17 @@ pub async fn open_db<M: Migrator + 'static>(db_dir: &Path, scope: &str) -> Threa
 
 async fn open_main_db<M: Migrator>(db_path: &Path) -> Option<ThreadSafeConnection> {
     log::trace!("Opening database {}", db_path.display());
-    ThreadSafeConnection::builder::<M>(db_path.to_string_lossy().as_ref(), true)
+    let result = ThreadSafeConnection::builder::<M>(db_path.to_string_lossy().as_ref(), true)
         .with_db_initialization_query(DB_INITIALIZE_QUERY)
         .with_connection_initialize_query(CONNECTION_INITIALIZE_QUERY)
         .build()
-        .await
-        .log_err()
+        .await;
+    
+    if let Err(ref e) = result {
+        log::error!("Failed to open database at {}: {}", db_path.display(), e);
+    }
+    
+    result.log_err()
 }
 
 async fn open_fallback_db<M: Migrator>() -> ThreadSafeConnection {

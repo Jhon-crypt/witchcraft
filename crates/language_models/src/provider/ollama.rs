@@ -21,6 +21,7 @@ use settings::{Settings, SettingsStore, update_settings_file};
 use std::pin::Pin;
 use std::sync::LazyLock;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 use ui::{
     ButtonLike, ButtonLink, ConfiguredApiCard, ElevationIndex, List, ListBulletItem, Tooltip,
@@ -487,11 +488,38 @@ impl LanguageModel for OllamaLanguageModel {
         };
 
         let future = self.request_limiter.stream(async move {
-            let stream =
-                stream_chat_completion(http_client.as_ref(), &api_url, api_key.as_deref(), request)
-                    .await?;
-            let stream = map_to_language_model_completion_events(stream);
-            Ok(stream)
+            match stream_chat_completion(http_client.as_ref(), &api_url, api_key.as_deref(), request).await {
+                Ok(stream) => {
+                    let stream = map_to_language_model_completion_events(stream);
+                    Ok(stream)
+                }
+                Err(e) => {
+                    // Try to parse Ollama error response to extract retry_after from JSON
+                    let error_str = e.to_string();
+                    let retry_after = error_str
+                        .split('{')
+                        .nth(1)
+                        .and_then(|json_part| {
+                            let json_str = format!("{{{json_part}");
+                            serde_json::from_str::<serde_json::Value>(&json_str).ok()
+                        })
+                        .and_then(|json| {
+                            json.get("retry_after")
+                                .and_then(|v| v.as_f64())
+                                .map(|secs| Duration::from_secs_f64(secs))
+                        });
+                    
+                    // Check if it's a 503 or SERVICE_UNAVAILABLE error
+                    if error_str.contains("503") || error_str.contains("SERVICE_UNAVAILABLE") {
+                        return Err(LanguageModelCompletionError::ServerOverloaded {
+                            provider: PROVIDER_NAME,
+                            retry_after,
+                        });
+                    }
+                    
+                    Err(LanguageModelCompletionError::from(e))
+                }
+            }
         });
 
         future.map_ok(|f| f.boxed()).boxed()

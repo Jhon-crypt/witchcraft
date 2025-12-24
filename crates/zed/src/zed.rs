@@ -97,7 +97,7 @@ use zed_actions::{
 };
 
 actions!(
-    zed,
+    witchcraft,
     [
         /// Opens the element inspector for debugging UI.
         DebugElements,

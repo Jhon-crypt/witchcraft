@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context as _, Result};
 use futures::{AsyncBufReadExt, AsyncReadExt, StreamExt, future::ready, io::BufReader, stream::BoxStream};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Request as HttpRequest};
+use log;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub use settings::KeepAlive;

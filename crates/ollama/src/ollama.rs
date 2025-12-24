@@ -309,9 +309,13 @@ pub async fn stream_chat_completion(
                     let json_value: serde_json::Value = match serde_json::from_str(&line) {
                         Ok(v) => v,
                         Err(e) => {
-                            // If it's an "unexpected end of JSON input" error and the line is very short,
-                            // it might be an incomplete response - skip it
-                            if e.to_string().contains("unexpected end of JSON input") && line.len() < 10 {
+                            // Log the problematic line for debugging
+                            log::warn!("Failed to parse Ollama response line (length: {}): {}", line.len(), 
+                                if line.len() > 200 { format!("{}...", &line[..200]) } else { line.clone() });
+                            
+                            // If it's an "unexpected end of JSON input" error, skip it
+                            // This can happen with network interruptions or incomplete chunks
+                            if e.to_string().contains("unexpected end of JSON input") {
                                 return Ok(None);
                             }
                             return Err(anyhow!("Failed to parse JSON response: {} - Line: {}", e, line).into());

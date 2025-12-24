@@ -1,5 +1,5 @@
-use anyhow::{Context as _, Result};
-use futures::{AsyncBufReadExt, AsyncReadExt, StreamExt, io::BufReader, stream::BoxStream};
+use anyhow::{anyhow, Context as _, Result};
+use futures::{AsyncBufReadExt, AsyncReadExt, StreamExt, future::ready, io::BufReader, stream::BoxStream};
 use http_client::{AsyncBody, HttpClient, HttpRequestExt, Method, Request as HttpRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -299,9 +299,53 @@ pub async fn stream_chat_completion(
         Ok(reader
             .lines()
             .map(|line| match line {
-                Ok(line) => serde_json::from_str(&line).context("Unable to parse chat response"),
+                Ok(line) => {
+                    // Skip empty lines
+                    if line.trim().is_empty() {
+                        return Ok(None);
+                    }
+                    
+                    // First, try to parse as JSON to check for error responses
+                    let json_value: serde_json::Value = match serde_json::from_str(&line) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            // If it's an "unexpected end of JSON input" error and the line is very short,
+                            // it might be an incomplete response - skip it
+                            if e.to_string().contains("unexpected end of JSON input") && line.len() < 10 {
+                                return Ok(None);
+                            }
+                            return Err(anyhow!("Failed to parse JSON response: {} - Line: {}", e, line).into());
+                        }
+                    };
+                    
+                    // Check if this is an error response
+                    if let Some(error_val) = json_value.get("error") {
+                        let error_msg = error_val
+                            .as_str()
+                            .map(|s| s.to_string())
+                            .unwrap_or_else(|| error_val.to_string());
+                        return Err(anyhow!("Ollama API error: {}", error_msg).into());
+                    }
+                    
+                    // Check if model field is missing (which would cause deserialization to fail)
+                    if json_value.get("model").is_none() {
+                        return Err(anyhow!(
+                            "Invalid Ollama response: missing 'model' field. Response: {}",
+                            line
+                        ).into());
+                    }
+                    
+                    // Try to parse as ChatResponseDelta
+                    Ok(Some(serde_json::from_value(json_value)
+                        .context("Unable to parse chat response")?))
+                }
                 Err(e) => Err(e.into()),
             })
+            .filter_map(|result| ready(match result {
+                Ok(Some(delta)) => Some(Ok(delta)),
+                Ok(None) => None, // Skip empty/incomplete lines
+                Err(e) => Some(Err(e)),
+            }))
             .boxed())
     } else {
         let mut body = String::new();

@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use fs::Fs;
 use futures::{FutureExt, StreamExt, future::BoxFuture, stream::BoxStream};
 use futures::{Stream, TryFutureExt, stream};
-use gpui::{AnyView, App, AsyncApp, Context, CursorStyle, Entity, Task};
+use gpui::{AnyView, App, AsyncApp, Context, CursorStyle, Entity, Task, rems};
 use http_client::HttpClient;
 use language_model::{
     ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel, LanguageModelCompletionError,
@@ -728,31 +728,33 @@ impl ConfigurationView {
 
     fn render_instructions(cx: &mut Context<Self>) -> Div {
         v_flex()
-            .gap_2()
-            .child(Label::new(
-                "Run LLMs locally on your machine with Ollama, or connect to an Ollama server. \
-                Can provide access to Llama, Mistral, Gemma, and hundreds of other models.",
-            ))
-            .child(Label::new("To use local Ollama:"))
+            .gap_4()
+            .items_center()
             .child(
-                List::new()
+                v_flex()
+                    .gap_3()
+                    .items_center()
                     .child(
-                        ListBulletItem::new("")
-                            .child(Label::new("Download and install Ollama from"))
-                            .child(ButtonLink::new("ollama.com", "https://ollama.com/download")),
+                        ui::Vector::square(ui::VectorName::ZedLogo, rems(6.0))
+                            .color(Color::Muted)
                     )
                     .child(
-                        ListBulletItem::new("")
-                            .child(Label::new("Start Ollama and download a model:"))
-                            .child(Label::new("ollama run gpt-oss:20b").inline_code(cx)),
+                        v_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(
+                                Headline::new("Witchcraft Agent")
+                                    .size(HeadlineSize::Medium)
+                            )
+                            .child(
+                                Label::new("The Witchcraft agent runs on open source models via Ollama, powered by Witchcraft GPUs")
+                                    .size(LabelSize::Default)
+                                    .color(Color::Muted)
+                            )
                     )
-                    .child(ListBulletItem::new(
-                        "Click 'Connect' below to start using Ollama in Zed",
-                    )),
             )
             .child(Label::new(
-                "Alternatively, you can connect to an Ollama server by specifying its \
-                URL and API key (may not be required):",
+                "Connect to an Ollama server by specifying its URL and API key (may not be required):",
             ))
     }
 

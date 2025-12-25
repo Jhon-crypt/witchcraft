@@ -154,63 +154,64 @@ fn register_language_model_providers(
     client: Arc<Client>,
     cx: &mut Context<LanguageModelRegistry>,
 ) {
-    registry.register_provider(
-        Arc::new(CloudLanguageModelProvider::new(
-            user_store,
-            client.clone(),
-            cx,
-        )),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(AnthropicLanguageModelProvider::new(
-            client.http_client(),
-            cx,
-        )),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(OpenAiLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
+    // Commented out: Only Ollama provider is enabled
+    // registry.register_provider(
+    //     Arc::new(CloudLanguageModelProvider::new(
+    //         user_store,
+    //         client.clone(),
+    //         cx,
+    //     )),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(AnthropicLanguageModelProvider::new(
+    //         client.http_client(),
+    //         cx,
+    //     )),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(OpenAiLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
     registry.register_provider(
         Arc::new(OllamaLanguageModelProvider::new(client.http_client(), cx)),
         cx,
     );
-    registry.register_provider(
-        Arc::new(LmStudioLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(DeepSeekLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(GoogleLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(
-        MistralLanguageModelProvider::global(client.http_client(), cx),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(BedrockLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(OpenRouterLanguageModelProvider::new(
-            client.http_client(),
-            cx,
-        )),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(VercelLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(
-        Arc::new(XAiLanguageModelProvider::new(client.http_client(), cx)),
-        cx,
-    );
-    registry.register_provider(Arc::new(CopilotChatLanguageModelProvider::new(cx)), cx);
+    // registry.register_provider(
+    //     Arc::new(LmStudioLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(DeepSeekLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(GoogleLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     MistralLanguageModelProvider::global(client.http_client(), cx),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(BedrockLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(OpenRouterLanguageModelProvider::new(
+    //         client.http_client(),
+    //         cx,
+    //     )),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(VercelLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(
+    //     Arc::new(XAiLanguageModelProvider::new(client.http_client(), cx)),
+    //     cx,
+    // );
+    // registry.register_provider(Arc::new(CopilotChatLanguageModelProvider::new(cx)), cx);
 }

@@ -524,8 +524,8 @@ fn render_import_settings_section(tab_index: &mut isize, cx: &mut App) -> impl I
                 .size(LabelSize::Default)
                 .weight(FontWeight::MEDIUM)
         )
-        .child(
-            Label::new("Automatically pull your settings from other editors")
+                .child(
+                    Label::new("Automatically pull your settings from other editors")
                 .color(Color::Muted)
                 .size(LabelSize::Small),
         )
@@ -545,22 +545,22 @@ pub(crate) fn render_basics_page(cx: &mut App) -> impl IntoElement {
         .gap_16()
         .child(
             v_flex()
-                .gap_6()
-                .child(render_theme_section(&mut tab_index, cx))
-                .child(render_base_keymap_section(&mut tab_index, cx))
+        .gap_6()
+        .child(render_theme_section(&mut tab_index, cx))
+        .child(render_base_keymap_section(&mut tab_index, cx))
         )
         .child(
             v_flex()
                 .gap_6()
-                .child(render_import_settings_section(&mut tab_index, cx))
-                .child(render_vim_mode_switch(&mut tab_index, cx))
-                .child(render_worktree_auto_trust_switch(&mut tab_index, cx))
+        .child(render_import_settings_section(&mut tab_index, cx))
+        .child(render_vim_mode_switch(&mut tab_index, cx))
+        .child(render_worktree_auto_trust_switch(&mut tab_index, cx))
         )
         .child(
             div()
                 .pt_8()
                 .border_t_1()
                 .border_color(cx.theme().colors().border_variant)
-                .child(render_telemetry_section(&mut tab_index, cx))
+        .child(render_telemetry_section(&mut tab_index, cx))
         )
 }

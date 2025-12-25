@@ -6172,20 +6172,7 @@ impl Render for AcpThreadView {
                         .vertical_scrollbar_for(&self.list_state, window, cx)
                         .into_any()
                     } else {
-                        let has_history = self
-                            .agent
-                            .clone()
-                            .downcast::<agent::NativeAgentServer>()
-                            .is_some()
-                            && self
-                                .history_store
-                                .update(cx, |history_store, cx| !history_store.is_empty(cx));
-                        
-                        if has_history {
-                            this.child(self.render_recent_history(cx)).into_any()
-                        } else {
-                            this.child(self.render_hero_section()).into_any()
-                        }
+                        this.child(self.render_hero_section()).into_any()
                     }
                 }),
             })

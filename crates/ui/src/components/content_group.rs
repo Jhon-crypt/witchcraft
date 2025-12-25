@@ -81,7 +81,7 @@ impl RenderOnce for ContentGroup {
             .when(self.border, |this| {
                 this.border_1().border_color(cx.theme().colors().border)
             })
-            .rounded_lg()
+                .rounded_2xl()
             .children(self.children)
     }
 }

@@ -4681,7 +4681,7 @@ impl ProjectPanel {
             .relative()
             .group(GROUP_NAME)
             .cursor_pointer()
-            .rounded_none()
+            .rounded_xl()
             .bg(bg_color)
             .border_1()
             .border_r_2()

@@ -234,13 +234,13 @@ impl RenderOnce for ListItem {
                     .when(self.selectable, |this| {
                         this.hover(|style| style.bg(cx.theme().colors().ghost_element_hover))
                             .active(|style| style.bg(cx.theme().colors().ghost_element_active))
-                            .when(self.outlined, |this| this.rounded_lg())
+                            .when(self.outlined, |this| this.rounded_2xl())
                             .when(self.selected, |this| {
                                 this.bg(cx.theme().colors().ghost_element_selected)
                             })
                     })
             })
-            .when(self.rounded, |this| this.rounded_lg())
+            .when(self.rounded, |this| this.rounded_2xl())
             .when_some(self.on_hover, |this, on_hover| this.on_hover(on_hover))
             .child(
                 h_flex()

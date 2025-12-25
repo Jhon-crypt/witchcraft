@@ -849,7 +849,7 @@ lto = "thin"
 codegen-units = 1
 
 [profile.release.package]
-zed = { codegen-units = 16 }
+witchcraft = { codegen-units = 16 }
 
 [profile.release-fast]
 inherits = "release"

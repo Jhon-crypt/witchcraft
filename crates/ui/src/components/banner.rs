@@ -63,7 +63,7 @@ impl RenderOnce for Banner {
             .gap_1p5()
             .flex_wrap()
             .justify_between()
-            .rounded_lg()
+                .rounded_2xl()
             .border_1();
 
         let (icon, icon_color, bg_color, border_color) = match self.severity {

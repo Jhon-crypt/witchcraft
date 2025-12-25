@@ -47,9 +47,10 @@ pub(crate) use configure_context_server_modal::ConfigureContextServerModal;
 pub(crate) use configure_context_server_tools_modal::ConfigureContextServerToolsModal;
 pub(crate) use manage_profiles_modal::ManageProfilesModal;
 
-use crate::agent_configuration::add_llm_provider_modal::{
-    AddLlmProviderModal, LlmCompatibleProvider,
-};
+// Commented out: Only Ollama provider is enabled
+// use crate::agent_configuration::add_llm_provider_modal::{
+//     AddLlmProviderModal, LlmCompatibleProvider,
+// };
 
 pub struct AgentConfiguration {
     fs: Arc<dyn Fs>,

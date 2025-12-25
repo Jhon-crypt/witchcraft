@@ -5,7 +5,7 @@ use crate::prelude::*;
 
 fn elevated<E: Styled>(this: E, cx: &App, index: ElevationIndex) -> E {
     this.bg(cx.theme().colors().elevated_surface_background)
-        .rounded_2xl()
+        .rounded_3xl()
         .border_1()
         .border_color(cx.theme().colors().border_variant)
         .shadow(index.shadow(cx))
@@ -13,7 +13,7 @@ fn elevated<E: Styled>(this: E, cx: &App, index: ElevationIndex) -> E {
 
 fn elevated_borderless<E: Styled>(this: E, cx: &mut App, index: ElevationIndex) -> E {
     this.bg(cx.theme().colors().elevated_surface_background)
-        .rounded_2xl()
+        .rounded_3xl()
         .shadow(index.shadow(cx))
 }
 

@@ -7434,7 +7434,7 @@ impl Render for Workspace {
                                         .bg(colors.background)
                                         .child(zoomed_view)
                                         .inset_0()
-                                        .rounded_2xl()
+                                        .rounded_3xl()
                                         .shadow_lg();
 
                                     if !WorkspaceSettings::get_global(cx).zoomed_padding {

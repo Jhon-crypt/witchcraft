@@ -31,8 +31,11 @@ use ui_input::InputField;
 
 use crate::AllLanguageModelSettings;
 
+#[allow(dead_code)]
 const OLLAMA_DOWNLOAD_URL: &str = "https://ollama.com/download";
+#[allow(dead_code)]
 const OLLAMA_LIBRARY_URL: &str = "https://ollama.com/library";
+#[allow(dead_code)]
 const OLLAMA_SITE: &str = "https://ollama.com/";
 
 const PROVIDER_ID: LanguageModelProviderId = LanguageModelProviderId::new("ollama");

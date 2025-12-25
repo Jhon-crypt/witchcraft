@@ -16,6 +16,7 @@ use ui::{
 use ui_input::InputField;
 use workspace::{ModalView, Workspace};
 
+#[allow(dead_code)]
 fn single_line_input(
     label: impl Into<SharedString>,
     placeholder: impl Into<SharedString>,
@@ -40,10 +41,12 @@ fn single_line_input(
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub enum LlmCompatibleProvider {
     OpenAi,
 }
 
+#[allow(dead_code)]
 impl LlmCompatibleProvider {
     fn name(&self) -> &'static str {
         match self {
@@ -58,6 +61,7 @@ impl LlmCompatibleProvider {
     }
 }
 
+#[allow(dead_code)]
 struct AddLlmProviderInput {
     provider_name: Entity<InputField>,
     api_url: Entity<InputField>,
@@ -65,6 +69,7 @@ struct AddLlmProviderInput {
     models: Vec<ModelInput>,
 }
 
+#[allow(dead_code)]
 impl AddLlmProviderInput {
     fn new(provider: LlmCompatibleProvider, window: &mut Window, cx: &mut App) -> Self {
         let provider_name =
@@ -97,6 +102,7 @@ impl AddLlmProviderInput {
     }
 }
 
+#[allow(dead_code)]
 struct ModelCapabilityToggles {
     pub supports_tools: ToggleState,
     pub supports_images: ToggleState,
@@ -104,6 +110,7 @@ struct ModelCapabilityToggles {
     pub supports_prompt_cache_key: ToggleState,
 }
 
+#[allow(dead_code)]
 struct ModelInput {
     name: Entity<InputField>,
     max_completion_tokens: Entity<InputField>,
@@ -112,6 +119,7 @@ struct ModelInput {
     capabilities: ModelCapabilityToggles,
 }
 
+#[allow(dead_code)]
 impl ModelInput {
     fn new(model_index: usize, window: &mut Window, cx: &mut App) -> Self {
         let base_tab_index = (3 + (model_index * 4)) as isize;
@@ -208,6 +216,7 @@ impl ModelInput {
     }
 }
 
+#[allow(dead_code)]
 fn save_provider_to_settings(
     input: &AddLlmProviderInput,
     cx: &mut App,
@@ -280,6 +289,7 @@ fn save_provider_to_settings(
     })
 }
 
+#[allow(dead_code)]
 pub struct AddLlmProviderModal {
     provider: LlmCompatibleProvider,
     input: AddLlmProviderInput,
@@ -288,6 +298,7 @@ pub struct AddLlmProviderModal {
     last_error: Option<SharedString>,
 }
 
+#[allow(dead_code)]
 impl AddLlmProviderModal {
     pub fn toggle(
         provider: LlmCompatibleProvider,

@@ -18,7 +18,7 @@ use extension_host::ExtensionStore;
 use fs::Fs;
 use gpui::{
     Action, AnyView, App, AsyncWindowContext, Corner, Entity, EventEmitter, FocusHandle, Focusable,
-    ScrollHandle, Subscription, Task, WeakEntity,
+    ScrollHandle, Subscription, Task, WeakEntity, rems,
 };
 use language::LanguageRegistry;
 use language_model::{
@@ -472,11 +472,44 @@ impl AgentConfiguration {
                     .w_full()
                     .pl(DynamicSpacing::Base08.rems(cx))
                     .pr(DynamicSpacing::Base20.rems(cx))
+                    .child(self.render_witchcraft_branding(cx))
                     .children(
                         providers.into_iter().map(|provider| {
                             self.render_provider_configuration_block(&provider, cx)
                         }),
                     ),
+            )
+    }
+
+    fn render_witchcraft_branding(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex()
+            .w_full()
+            .gap_4()
+            .items_center()
+            .py_6()
+            .mb_4()
+            .child(
+                v_flex()
+                    .gap_3()
+                    .items_center()
+                    .child(
+                        ui::Vector::square(ui::VectorName::ZedLogo, rems(6.0))
+                            .color(Color::Muted)
+                    )
+                    .child(
+                        v_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(
+                                Headline::new("Witchcraft Agent")
+                                    .size(HeadlineSize::Medium)
+                            )
+                            .child(
+                                Label::new("The Witchcraft agent runs on open source models via Ollama, powered by Witchcraft GPUs")
+                                    .size(LabelSize::Default)
+                                    .color(Color::Muted)
+                            )
+                    )
             )
     }
 

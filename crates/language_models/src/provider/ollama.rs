@@ -728,31 +728,7 @@ impl ConfigurationView {
 
     fn render_instructions(cx: &mut Context<Self>) -> Div {
         v_flex()
-            .gap_4()
-            .items_center()
-            .child(
-                v_flex()
-                    .gap_3()
-                    .items_center()
-                    .child(
-                        ui::Vector::square(ui::VectorName::ZedLogo, rems(6.0))
-                            .color(Color::Muted)
-                    )
-                    .child(
-                        v_flex()
-                            .gap_2()
-                            .items_center()
-                            .child(
-                                Headline::new("Witchcraft Agent")
-                                    .size(HeadlineSize::Medium)
-                            )
-                            .child(
-                                Label::new("The Witchcraft agent runs on open source models via Ollama, powered by Witchcraft GPUs")
-                                    .size(LabelSize::Default)
-                                    .color(Color::Muted)
-                            )
-                    )
-            )
+            .gap_2()
             .child(Label::new(
                 "Connect to an Ollama server by specifying its URL and API key (may not be required):",
             ))

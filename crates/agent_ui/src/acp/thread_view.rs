@@ -3499,6 +3499,51 @@ impl AcpThreadView {
         )
     }
 
+    fn render_hero_section(&self) -> impl IntoElement {
+        v_flex()
+            .justify_center()
+            .items_center()
+            .px_8()
+            .py_12()
+            .child(
+                v_flex()
+                    .gap_6()
+                    .items_center()
+                    .w_full()
+                    .max_w(rems(40.0))
+                    .child(
+                        ui::Vector::square(ui::VectorName::ZedLogo, rems(8.0))
+                            .color(Color::Muted)
+                    )
+                    .child(
+                        v_flex()
+                            .gap_3()
+                            .items_center()
+                            .w_full()
+                            .child(
+                                Headline::new("Witchcraft Agent")
+                                    .size(HeadlineSize::Large)
+                            )
+                            .child(
+                                v_flex()
+                                    .w_full()
+                                    .items_center()
+                                    .px_6()
+                                    .child(
+                                        div()
+                                            .max_w(rems(36.0))
+                                            .text_center()
+                                            .child(
+                                                Label::new("Our agent works with open source models running inference on our Witchcraft GPU")
+                                                    .size(LabelSize::Default)
+                                                    .color(Color::Muted)
+                                            )
+                                    )
+                            )
+                    )
+            )
+    }
+
     fn render_recent_history(&self, cx: &mut Context<Self>) -> AnyElement {
         let render_history = self
             .agent
@@ -3512,47 +3557,7 @@ impl AcpThreadView {
         v_flex()
             .size_full()
             .when(!render_history, |this| {
-                this.justify_center()
-                    .items_center()
-                    .px_8()
-                    .py_12()
-                    .child(
-                        v_flex()
-                            .gap_6()
-                            .items_center()
-                            .w_full()
-                            .max_w(rems(40.0))
-                            .child(
-                                ui::Vector::square(ui::VectorName::ZedLogo, rems(8.0))
-                                    .color(Color::Muted)
-                            )
-                            .child(
-                                v_flex()
-                                    .gap_3()
-                                    .items_center()
-                                    .w_full()
-                                    .child(
-                                        Headline::new("Witchcraft Agent")
-                                            .size(HeadlineSize::Large)
-                                    )
-                                    .child(
-                                        v_flex()
-                                            .w_full()
-                                            .items_center()
-                                            .px_6()
-                                            .child(
-                                                div()
-                                                    .max_w(rems(36.0))
-                                                    .text_center()
-                                                    .child(
-                                                        Label::new("Our agent works with open source models running inference on our Witchcraft GPU")
-                                                            .size(LabelSize::Default)
-                                                            .color(Color::Muted)
-                                                    )
-                                            )
-                                    )
-                            )
-                    )
+                this.child(self.render_hero_section())
             })
             .when(render_history, |this| {
                 let recent_history: Vec<_> = self.history_store.update(cx, |history_store, _| {
@@ -6136,7 +6141,7 @@ impl Render for AcpThreadView {
                     .into_any_element(),
                 ThreadState::Loading { .. } => v_flex()
                     .flex_1()
-                    .child(self.render_recent_history(cx))
+                    .child(self.render_hero_section())
                     .into_any(),
                 ThreadState::LoadError(e) => v_flex()
                     .flex_1()
@@ -6167,7 +6172,20 @@ impl Render for AcpThreadView {
                         .vertical_scrollbar_for(&self.list_state, window, cx)
                         .into_any()
                     } else {
-                        this.child(self.render_recent_history(cx)).into_any()
+                        let has_history = self
+                            .agent
+                            .clone()
+                            .downcast::<agent::NativeAgentServer>()
+                            .is_some()
+                            && self
+                                .history_store
+                                .update(cx, |history_store, cx| !history_store.is_empty(cx));
+                        
+                        if has_history {
+                            this.child(self.render_recent_history(cx)).into_any()
+                        } else {
+                            this.child(self.render_hero_section()).into_any()
+                        }
                     }
                 }),
             })

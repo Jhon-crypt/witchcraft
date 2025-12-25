@@ -59,7 +59,7 @@ impl RenderOnce for Chip {
             .flex_initial()
             .px_1()
             .border_1()
-            .rounded_sm()
+            .rounded_lg()
             .border_color(cx.theme().colors().border)
             .bg(bg_color)
             .overflow_hidden()

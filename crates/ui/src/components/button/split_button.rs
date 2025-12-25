@@ -68,7 +68,7 @@ impl RenderOnce for SplitButton {
         );
 
         h_flex()
-            .rounded_sm()
+            .rounded_lg()
             .when(is_filled_or_outlined, |this| {
                 this.border_1()
                     .border_color(cx.theme().colors().border.opacity(0.8))

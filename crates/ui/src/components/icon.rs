@@ -354,7 +354,7 @@ impl Component for Icon {
                                             .border_1()
                                             .border_color(cx.theme().colors().border_variant)
                                             .bg(cx.theme().colors().element_disabled)
-                                            .rounded_sm()
+                                            .rounded_lg()
                                             .child(Icon::new(icon_name).into_any_element())
                                             .child(SharedString::new_static(icon_name.into()))
                                     },

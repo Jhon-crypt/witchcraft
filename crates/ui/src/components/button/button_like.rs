@@ -661,10 +661,10 @@ impl RenderOnce for ButtonLike {
             })
             .when(is_outlined, |this| this.border_1())
             .when_some(self.rounding, |this, rounding| {
-                this.when(rounding.top_left, |this| this.rounded_tl_sm())
-                    .when(rounding.top_right, |this| this.rounded_tr_sm())
-                    .when(rounding.bottom_right, |this| this.rounded_br_sm())
-                    .when(rounding.bottom_left, |this| this.rounded_bl_sm())
+                this.when(rounding.top_left, |this| this.rounded_tl_lg())
+                    .when(rounding.top_right, |this| this.rounded_tr_lg())
+                    .when(rounding.bottom_right, |this| this.rounded_br_lg())
+                    .when(rounding.bottom_left, |this| this.rounded_bl_lg())
             })
             .gap(DynamicSpacing::Base04.rems(cx))
             .map(|this| match self.size {

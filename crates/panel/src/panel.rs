@@ -81,7 +81,7 @@ pub fn panel_editor_container(_window: &mut Window, cx: &mut App) -> Div {
     v_flex()
         .size_full()
         .gap(px(8.))
-        .p_2()
+        .p_3()
         .bg(cx.theme().colors().editor_background)
 }
 

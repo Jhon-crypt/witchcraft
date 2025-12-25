@@ -28,7 +28,11 @@ use util::rel_path::RelPath;
 
 const DEFAULT_UI_TEXT: &str = "Editing file";
 
-/// This is a tool for creating a new file or editing an existing file. For moving or renaming files, you should generally use the `terminal` tool with the 'mv' command instead.
+/// **REQUIRED TOOL FOR FILE OPERATIONS**: This tool MUST be used whenever you need to create, edit, or modify files. DO NOT just show code in markdown blocks - you MUST call this tool to actually apply changes to the filesystem.
+///
+/// This tool creates or edits files in the project. For moving or renaming files, use the `terminal` tool with the 'mv' command instead.
+///
+/// **CRITICAL**: When the user asks you to edit, create, update, add to, or modify any file, you MUST use this tool. Showing code examples without using this tool is NOT acceptable - the user expects actual file changes to be applied.
 ///
 /// Before using this tool:
 ///

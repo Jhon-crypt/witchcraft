@@ -7004,9 +7004,6 @@ impl Render for Workspace {
                                 .flex()
                                 .flex_col()
                                 .overflow_hidden()
-                                .border_t_1()
-                                .border_b_1()
-                                .border_color(colors.border)
                                 .child({
                                     let this = cx.entity();
                                     canvas(
@@ -7437,6 +7434,7 @@ impl Render for Workspace {
                                         .bg(colors.background)
                                         .child(zoomed_view)
                                         .inset_0()
+                                        .rounded_2xl()
                                         .shadow_lg();
 
                                     if !WorkspaceSettings::get_global(cx).zoomed_padding {

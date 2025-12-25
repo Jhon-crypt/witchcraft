@@ -200,7 +200,7 @@ impl LabelCommon for LabelLike {
             .base
             .font(theme::ThemeSettings::get_global(cx).buffer_font.clone())
             .bg(cx.theme().colors().element_background)
-            .rounded_sm()
+            .rounded_lg()
             .px_0p5();
         self
     }

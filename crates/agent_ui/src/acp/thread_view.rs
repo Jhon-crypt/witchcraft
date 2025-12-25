@@ -3511,6 +3511,49 @@ impl AcpThreadView {
 
         v_flex()
             .size_full()
+            .when(!render_history, |this| {
+                this.justify_center()
+                    .items_center()
+                    .px_8()
+                    .py_12()
+                    .child(
+                        v_flex()
+                            .gap_6()
+                            .items_center()
+                            .w_full()
+                            .max_w(rems(40.0))
+                            .child(
+                                ui::Vector::square(ui::VectorName::ZedLogo, rems(8.0))
+                                    .color(Color::Muted)
+                            )
+                            .child(
+                                v_flex()
+                                    .gap_3()
+                                    .items_center()
+                                    .w_full()
+                                    .child(
+                                        Headline::new("Witchcraft Agent")
+                                            .size(HeadlineSize::Large)
+                                    )
+                                    .child(
+                                        v_flex()
+                                            .w_full()
+                                            .items_center()
+                                            .px_6()
+                                            .child(
+                                                div()
+                                                    .max_w(rems(36.0))
+                                                    .text_center()
+                                                    .child(
+                                                        Label::new("Our agent works with open source models running inference on our Witchcraft GPU")
+                                                            .size(LabelSize::Default)
+                                                            .color(Color::Muted)
+                                                    )
+                                            )
+                                    )
+                            )
+                    )
+            })
             .when(render_history, |this| {
                 let recent_history: Vec<_> = self.history_store.update(cx, |history_store, _| {
                     history_store.entries().take(3).collect()

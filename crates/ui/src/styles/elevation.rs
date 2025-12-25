@@ -48,42 +48,42 @@ impl ElevationIndex {
 
             ElevationIndex::ElevatedSurface => vec![
                 BoxShadow {
-                    color: hsla(0., 0., 0., 0.12),
-                    offset: point(px(0.), px(2.)),
-                    blur_radius: px(3.),
+                    color: hsla(0., 0., 0., if is_light { 0.08 } else { 0.16 }),
+                    offset: point(px(0.), px(4.)),
+                    blur_radius: px(12.),
                     spread_radius: px(0.),
                 },
                 BoxShadow {
-                    color: hsla(0., 0., 0., if is_light { 0.03 } else { 0.06 }),
-                    offset: point(px(1.), px(1.)),
-                    blur_radius: px(0.),
+                    color: hsla(0., 0., 0., if is_light { 0.04 } else { 0.08 }),
+                    offset: point(px(0.), px(2.)),
+                    blur_radius: px(6.),
+                    spread_radius: px(0.),
+                },
+                BoxShadow {
+                    color: hsla(0., 0., 0., if is_light { 0.02 } else { 0.04 }),
+                    offset: point(px(0.), px(1.)),
+                    blur_radius: px(3.),
                     spread_radius: px(0.),
                 },
             ],
 
             ElevationIndex::ModalSurface => vec![
                 BoxShadow {
-                    color: hsla(0., 0., 0., if is_light { 0.06 } else { 0.12 }),
-                    offset: point(px(0.), px(2.)),
-                    blur_radius: px(3.),
+                    color: hsla(0., 0., 0., if is_light { 0.10 } else { 0.20 }),
+                    offset: point(px(0.), px(8.)),
+                    blur_radius: px(24.),
                     spread_radius: px(0.),
                 },
                 BoxShadow {
-                    color: hsla(0., 0., 0., if is_light { 0.06 } else { 0.08 }),
-                    offset: point(px(0.), px(3.)),
-                    blur_radius: px(6.),
-                    spread_radius: px(0.),
-                },
-                BoxShadow {
-                    color: hsla(0., 0., 0., 0.04),
-                    offset: point(px(0.), px(6.)),
+                    color: hsla(0., 0., 0., if is_light { 0.08 } else { 0.16 }),
+                    offset: point(px(0.), px(4.)),
                     blur_radius: px(12.),
                     spread_radius: px(0.),
                 },
                 BoxShadow {
-                    color: hsla(0., 0., 0., if is_light { 0.04 } else { 0.12 }),
-                    offset: point(px(1.), px(1.)),
-                    blur_radius: px(0.),
+                    color: hsla(0., 0., 0., if is_light { 0.04 } else { 0.08 }),
+                    offset: point(px(0.), px(2.)),
+                    blur_radius: px(6.),
                     spread_radius: px(0.),
                 },
             ],

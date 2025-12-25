@@ -819,46 +819,8 @@ impl Render for ConfigurationView {
             .child(
                 h_flex()
                     .w_full()
-                    .justify_between()
+                    .justify_end()
                     .gap_2()
-                    .child(
-                        h_flex()
-                            .w_full()
-                            .gap_2()
-                            .map(|this| {
-                                if is_authenticated {
-                                    this.child(
-                                        Button::new("ollama-site", "Ollama")
-                                            .style(ButtonStyle::Subtle)
-                                            .icon(IconName::ArrowUpRight)
-                                            .icon_size(IconSize::XSmall)
-                                            .icon_color(Color::Muted)
-                                            .on_click(move |_, _, cx| cx.open_url(OLLAMA_SITE))
-                                            .into_any_element(),
-                                    )
-                                } else {
-                                    this.child(
-                                        Button::new("download_ollama_button", "Download Ollama")
-                                            .style(ButtonStyle::Subtle)
-                                            .icon(IconName::ArrowUpRight)
-                                            .icon_size(IconSize::XSmall)
-                                            .icon_color(Color::Muted)
-                                            .on_click(move |_, _, cx| {
-                                                cx.open_url(OLLAMA_DOWNLOAD_URL)
-                                            })
-                                            .into_any_element(),
-                                    )
-                                }
-                            })
-                            .child(
-                                Button::new("view-models", "View All Models")
-                                    .style(ButtonStyle::Subtle)
-                                    .icon(IconName::ArrowUpRight)
-                                    .icon_size(IconSize::XSmall)
-                                    .icon_color(Color::Muted)
-                                    .on_click(move |_, _, cx| cx.open_url(OLLAMA_LIBRARY_URL)),
-                            ),
-                    )
                     .map(|this| {
                         if is_authenticated {
                             this.child(

@@ -7639,11 +7639,11 @@ actions!(
     ]
 );
 actions!(
-    zed,
+    witchcraft,
     [
-        /// Opens the Zed log file.
+        /// Opens the Witchcraft log file.
         OpenLog,
-        /// Reveals the Zed log file in the system file manager.
+        /// Reveals the Witchcraft log file in the system file manager.
         RevealLogInFileManager
     ]
 );

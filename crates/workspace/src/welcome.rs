@@ -23,7 +23,7 @@ pub struct OpenRecentProject {
 }
 
 actions!(
-    zed,
+    witchcraft,
     [
         /// Show the Witchcraft welcome screen
         ShowWelcome

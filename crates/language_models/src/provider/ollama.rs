@@ -2,7 +2,7 @@ use anyhow::{Result, anyhow};
 use fs::Fs;
 use futures::{FutureExt, StreamExt, future::BoxFuture, stream::BoxStream};
 use futures::{Stream, TryFutureExt, stream};
-use gpui::{AnyView, App, AsyncApp, Context, CursorStyle, Entity, Task, rems};
+use gpui::{AnyView, App, AsyncApp, Context, CursorStyle, Entity, Task};
 use http_client::HttpClient;
 use language_model::{
     ApiKeyState, AuthenticateError, EnvVar, IconOrSvg, LanguageModel, LanguageModelCompletionError,
@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use std::{collections::HashMap, sync::Arc};
 use ui::{
-    ButtonLike, ButtonLink, ConfiguredApiCard, ElevationIndex, List, ListBulletItem, Tooltip,
+    ButtonLike, ConfiguredApiCard, ElevationIndex, Tooltip,
     prelude::*,
 };
 use ui_input::InputField;
@@ -726,7 +726,7 @@ impl ConfigurationView {
         cx.notify();
     }
 
-    fn render_instructions(cx: &mut Context<Self>) -> Div {
+    fn render_instructions(_cx: &mut Context<Self>) -> Div {
         v_flex()
             .gap_2()
             .child(Label::new(

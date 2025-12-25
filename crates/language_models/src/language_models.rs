@@ -5,7 +5,8 @@ use client::{Client, UserStore};
 use collections::HashSet;
 use gpui::{App, Context, Entity};
 use language_model::{LanguageModelProviderId, LanguageModelRegistry};
-use provider::deepseek::DeepSeekLanguageModelProvider;
+// Commented out: Only Ollama provider is enabled
+// use provider::deepseek::DeepSeekLanguageModelProvider;
 
 pub mod extension;
 pub mod provider;
@@ -13,19 +14,20 @@ mod settings;
 
 pub use crate::extension::init_proxy as init_extension_proxy;
 
-use crate::provider::anthropic::AnthropicLanguageModelProvider;
-use crate::provider::bedrock::BedrockLanguageModelProvider;
-use crate::provider::cloud::CloudLanguageModelProvider;
-use crate::provider::copilot_chat::CopilotChatLanguageModelProvider;
-use crate::provider::google::GoogleLanguageModelProvider;
-use crate::provider::lmstudio::LmStudioLanguageModelProvider;
+// Commented out: Only Ollama provider is enabled
+// use crate::provider::anthropic::AnthropicLanguageModelProvider;
+// use crate::provider::bedrock::BedrockLanguageModelProvider;
+// use crate::provider::cloud::CloudLanguageModelProvider;
+// use crate::provider::copilot_chat::CopilotChatLanguageModelProvider;
+// use crate::provider::google::GoogleLanguageModelProvider;
+// use crate::provider::lmstudio::LmStudioLanguageModelProvider;
 pub use crate::provider::mistral::MistralLanguageModelProvider;
 use crate::provider::ollama::OllamaLanguageModelProvider;
-use crate::provider::open_ai::OpenAiLanguageModelProvider;
+// use crate::provider::open_ai::OpenAiLanguageModelProvider;
 use crate::provider::open_ai_compatible::OpenAiCompatibleLanguageModelProvider;
-use crate::provider::open_router::OpenRouterLanguageModelProvider;
-use crate::provider::vercel::VercelLanguageModelProvider;
-use crate::provider::x_ai::XAiLanguageModelProvider;
+// use crate::provider::open_router::OpenRouterLanguageModelProvider;
+// use crate::provider::vercel::VercelLanguageModelProvider;
+// use crate::provider::x_ai::XAiLanguageModelProvider;
 pub use crate::settings::*;
 
 pub fn init(user_store: Entity<UserStore>, client: Arc<Client>, cx: &mut App) {
@@ -150,7 +152,7 @@ fn register_openai_compatible_providers(
 
 fn register_language_model_providers(
     registry: &mut LanguageModelRegistry,
-    user_store: Entity<UserStore>,
+    _user_store: Entity<UserStore>,
     client: Arc<Client>,
     cx: &mut Context<LanguageModelRegistry>,
 ) {

@@ -464,7 +464,7 @@ impl AgentConfiguration {
             .w_full()
             .child(self.render_section_title(
                 "LLM Providers",
-                "Add at least one provider to use AI-powered features with Zed's native agent.",
+                "",
                 popover_menu.into_any_element(),
             ))
             .child(
@@ -481,7 +481,7 @@ impl AgentConfiguration {
             )
     }
 
-    fn render_witchcraft_branding(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_witchcraft_branding(&self, _cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .w_full()
             .gap_4()

@@ -267,6 +267,7 @@ pub struct AcpThreadView {
     thread_state: ThreadState,
     login: Option<task::SpawnInTerminal>,
     history_store: Entity<HistoryStore>,
+    #[allow(dead_code)]
     hovered_recent_history_item: Option<usize>,
     entry_view_state: Entity<EntryViewState>,
     message_editor: Entity<MessageEditor>,
@@ -3475,6 +3476,7 @@ impl AcpThreadView {
         )
     }
 
+    #[allow(dead_code)]
     fn render_empty_state_section_header(
         &self,
         label: impl Into<SharedString>,
@@ -3544,6 +3546,7 @@ impl AcpThreadView {
             )
     }
 
+    #[allow(dead_code)]
     fn render_recent_history(&self, cx: &mut Context<Self>) -> AnyElement {
         let render_history = self
             .agent

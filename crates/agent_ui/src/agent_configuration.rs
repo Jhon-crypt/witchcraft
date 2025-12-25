@@ -422,6 +422,12 @@ impl AgentConfiguration {
     ) -> impl IntoElement {
         let providers = LanguageModelRegistry::read_global(cx).visible_providers();
 
+        // Filter out Ollama since we render it directly under the branding
+        let other_providers: Vec<_> = providers
+            .into_iter()
+            .filter(|provider| provider.id().0 != "ollama")
+            .collect();
+
         v_flex()
             .w_full()
             .child(
@@ -432,7 +438,7 @@ impl AgentConfiguration {
                     .child(self.render_witchcraft_branding(cx))
                     .child(self.render_ollama_configuration(cx))
                     .children(
-                        providers.into_iter().map(|provider| {
+                        other_providers.into_iter().map(|provider| {
                             self.render_provider_configuration_block(&provider, cx)
                         }),
                     ),

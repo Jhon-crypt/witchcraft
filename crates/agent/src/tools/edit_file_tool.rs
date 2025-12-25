@@ -28,11 +28,18 @@ use util::rel_path::RelPath;
 
 const DEFAULT_UI_TEXT: &str = "Editing file";
 
-/// **REQUIRED TOOL FOR FILE OPERATIONS**: This tool MUST be used whenever you need to create, edit, or modify files. DO NOT just show code in markdown blocks - you MUST call this tool to actually apply changes to the filesystem.
+/// **⚠️ MANDATORY TOOL FOR ALL FILE OPERATIONS ⚠️**
+///
+/// **YOU MUST USE THIS TOOL - DO NOT DESCRIBE ACTIONS, EXECUTE THEM.**
 ///
 /// This tool creates or edits files in the project. For moving or renaming files, use the `terminal` tool with the 'mv' command instead.
 ///
-/// **CRITICAL**: When the user asks you to edit, create, update, add to, or modify any file, you MUST use this tool. Showing code examples without using this tool is NOT acceptable - the user expects actual file changes to be applied.
+/// **CRITICAL RULES:**
+/// 1. When the user asks you to edit, create, update, add to, or modify ANY file, you MUST call this tool IMMEDIATELY.
+/// 2. DO NOT say "I will update..." or "Let me rewrite..." - just call this tool.
+/// 3. DO NOT show code in markdown blocks for file operations - the user expects actual file changes.
+/// 4. Showing code examples without using this tool is NOT acceptable - the user expects actual file changes to be applied.
+/// 5. Execute first, confirm briefly after - do not explain your plan before executing.
 ///
 /// Before using this tool:
 ///

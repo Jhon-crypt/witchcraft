@@ -422,57 +422,15 @@ impl AgentConfiguration {
     ) -> impl IntoElement {
         let providers = LanguageModelRegistry::read_global(cx).visible_providers();
 
-        let popover_menu = PopoverMenu::new("add-provider-popover")
-            .trigger(
-                Button::new("add-provider", "Add Provider")
-                    .style(ButtonStyle::Outlined)
-                    .icon_position(IconPosition::Start)
-                    .icon(IconName::Plus)
-                    .icon_size(IconSize::Small)
-                    .icon_color(Color::Muted)
-                    .label_size(LabelSize::Small),
-            )
-            .menu({
-                let workspace = self.workspace.clone();
-                move |window, cx| {
-                    Some(ContextMenu::build(window, cx, |menu, _window, _cx| {
-                        menu.header("Compatible APIs").entry("OpenAI", None, {
-                            let workspace = workspace.clone();
-                            move |window, cx| {
-                                workspace
-                                    .update(cx, |workspace, cx| {
-                                        AddLlmProviderModal::toggle(
-                                            LlmCompatibleProvider::OpenAi,
-                                            workspace,
-                                            window,
-                                            cx,
-                                        );
-                                    })
-                                    .log_err();
-                            }
-                        })
-                    }))
-                }
-            })
-            .anchor(gpui::Corner::TopRight)
-            .offset(gpui::Point {
-                x: px(0.0),
-                y: px(2.0),
-            });
-
         v_flex()
             .w_full()
-            .child(self.render_section_title(
-                "LLM Providers",
-                "",
-                popover_menu.into_any_element(),
-            ))
             .child(
                 div()
                     .w_full()
                     .pl(DynamicSpacing::Base08.rems(cx))
                     .pr(DynamicSpacing::Base20.rems(cx))
                     .child(self.render_witchcraft_branding(cx))
+                    .child(self.render_ollama_configuration(cx))
                     .children(
                         providers.into_iter().map(|provider| {
                             self.render_provider_configuration_block(&provider, cx)
@@ -511,6 +469,33 @@ impl AgentConfiguration {
                             )
                     )
             )
+    }
+
+    fn render_ollama_configuration(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let providers = LanguageModelRegistry::read_global(cx).visible_providers();
+        
+        // Find the Ollama provider
+        let ollama_provider = providers.iter().find(|provider| {
+            provider.id().0 == "ollama"
+        });
+
+        if let Some(provider) = ollama_provider {
+            let configuration_view = self
+                .configuration_views_by_provider
+                .get(&provider.id())
+                .cloned();
+
+            v_flex()
+                .w_full()
+                .gap_3()
+                .mb_4()
+                .when_some(configuration_view, |this, view| {
+                    this.child(view)
+                })
+                .into_any_element()
+        } else {
+            div().into_any_element()
+        }
     }
 
     fn render_zed_plan_info(&self, plan: Option<Plan>, cx: &mut Context<Self>) -> impl IntoElement {

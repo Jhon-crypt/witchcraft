@@ -6049,8 +6049,8 @@ fn loading_contents_spinner(size: IconSize) -> AnyElement {
 }
 
 fn placeholder_text(agent_name: &str, has_commands: bool) -> String {
-    if agent_name == "Zed Agent" {
-        format!("Message the {} — @ to include context", agent_name)
+    if agent_name == "Zed Agent" || agent_name == "Witchcraft Agent" {
+        format!("Message the Witchcraft Agent — @ to include context")
     } else if has_commands {
         format!(
             "Message {} — @ to include context, / for commands",

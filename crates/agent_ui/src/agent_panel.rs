@@ -256,7 +256,7 @@ impl AgentType {
 
     fn icon(&self) -> Option<IconName> {
         match self {
-            Self::NativeAgent | Self::TextThread => None,
+            Self::NativeAgent | Self::TextThread => Some(IconName::Plus),
             Self::Gemini => Some(IconName::AiGemini),
             Self::ClaudeCode => Some(IconName::AiClaude),
             Self::Codex => Some(IconName::AiOpenAi),
@@ -2067,7 +2067,7 @@ impl AgentPanel {
                                     .when(is_agent_selected(AgentType::NativeAgent) | is_agent_selected(AgentType::TextThread) , |this| {
                                         this.action(Box::new(NewExternalAgentThread { agent: None }))
                                     })
-                                    .icon(IconName::ZedAgent)
+                                    .icon(IconName::Plus)
                                     .icon_color(Color::Muted)
                                     .handler({
                                         let workspace = workspace.clone();

@@ -363,7 +363,7 @@ pub fn init(cx: &mut App) -> Arc<AgentAppState> {
 
     // Set User-Agent so we can download language servers from GitHub
     let user_agent = format!(
-        "Zed Agent Eval/{} ({}; {})",
+        "Witchcraft Agent Eval/{} ({}; {})",
         app_version,
         std::env::consts::OS,
         std::env::consts::ARCH

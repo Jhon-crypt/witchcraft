@@ -4737,7 +4737,7 @@ impl AcpThreadView {
         let following = self.is_following(cx);
 
         let tooltip_label = if following {
-            if self.agent.name() == "Zed Agent" {
+            if self.agent.name() == "Witchcraft Agent" {
                 format!("Stop Following the {}", self.agent.name())
             } else {
                 format!("Stop Following {}", self.agent.name())

@@ -398,10 +398,7 @@ impl OllamaLanguageModel {
                 temperature: request.temperature.or(Some(1.0)),
                 ..Default::default()
             }),
-            think: self
-                .model
-                .supports_thinking
-                .map(|supports_thinking| supports_thinking && request.thinking_allowed),
+            think: Some(false), // Thinking/reasoning mode disabled
             tools: if self.model.supports_tools.unwrap_or(false) {
                 request.tools.into_iter().map(tool_into_ollama).collect()
             } else {
@@ -574,14 +571,15 @@ fn map_to_language_model_completion_events(
                     content,
                     tool_calls,
                     images: _,
-                    thinking,
+                    thinking: _thinking, // Thinking mode disabled - ignore thinking field
                 } => {
-                    if let Some(text) = thinking {
-                        events.push(Ok(LanguageModelCompletionEvent::Thinking {
-                            text,
-                            signature: None,
-                        }));
-                    }
+                    // Thinking/reasoning mode disabled - skip rendering thinking blocks
+                    // if let Some(text) = thinking {
+                    //     events.push(Ok(LanguageModelCompletionEvent::Thinking {
+                    //         text,
+                    //         signature: None,
+                    //     }));
+                    // }
 
                     if let Some(tool_call) = tool_calls.and_then(|v| v.into_iter().next()) {
                         let OllamaToolCall { id, function } = tool_call;

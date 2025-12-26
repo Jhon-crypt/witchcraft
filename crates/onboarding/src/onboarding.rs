@@ -507,7 +507,7 @@ fn go_to_welcome_page(cx: &mut App) {
                 let _ = item.downcast::<WelcomePage>()?;
                 Some(idx)
             });
- 
+
             if let Some(idx) = idx {
                 pane.activate_item(idx, true, true, window, cx);
             } else {

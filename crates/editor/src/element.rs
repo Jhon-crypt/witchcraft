@@ -3928,7 +3928,7 @@ impl EditorElement {
                     .flex_basis(Length::Definite(DefiniteLength::Fraction(0.667)))
                     .pl_1()
                     .pr_2()
-                    .rounded_sm()
+                    .rounded_lg()
                     .gap_1p5()
                     .when(is_sticky, |el| el.shadow_md())
                     .border_1()

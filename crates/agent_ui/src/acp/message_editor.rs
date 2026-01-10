@@ -832,6 +832,13 @@ impl MessageEditor {
         });
     }
 
+    pub fn set_text_for_mode(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.editor.update(cx, |editor, cx| {
+            editor.set_text(text, window, cx);
+            cx.notify()
+        });
+    }
+
     pub fn set_message(
         &mut self,
         message: Vec<acp::ContentBlock>,

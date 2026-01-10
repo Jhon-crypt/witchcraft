@@ -25,7 +25,7 @@ use fs::Fs;
 use futures::FutureExt as _;
 use gpui::{
     Action, Animation, AnimationExt, AnyView, App, BorderStyle, ClickEvent, ClipboardItem,
-    CursorStyle, EdgesRefinement, ElementId, Empty, Entity, FocusHandle, Focusable, Hsla, Length,
+    CursorStyle, EdgesRefinement, ElementId, Empty, Entity, FocusHandle, Focusable, FontWeight, Hsla, Length,
     ListOffset, ListState, PlatformDisplay, SharedString, StyleRefinement, Subscription, Task,
     TextStyle, TextStyleRefinement, UnderlineStyle, WeakEntity, Window, WindowHandle, div,
     ease_in_out, linear_color_stop, linear_gradient, list, point, pulsating_between,
@@ -259,6 +259,56 @@ impl ThreadFeedbackState {
     }
 }
 
+/// Agent operating modes that define how the agent behaves
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AgentMode {
+    /// Understand mode: Helps the agent get context of the repo and what you're doing
+    #[default]
+    Understand,
+    /// Debug mode: Helps identify and fix issues in your code
+    Debug,
+    /// Implement mode: Helps implement new features and functionality
+    Implement,
+}
+
+impl AgentMode {
+    pub fn label(&self) -> &'static str {
+        match self {
+            AgentMode::Understand => "Understand",
+            AgentMode::Debug => "Debug",
+            AgentMode::Implement => "Implement",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            AgentMode::Understand => "Helps the agent get context of what the repo is about and what you're doing. Best for exploring existing codebases.",
+            AgentMode::Debug => "Helps identify and fix issues in your code. The agent will analyze errors, suggest fixes, and help troubleshoot problems.",
+            AgentMode::Implement => "Helps implement new features and functionality. The agent will assist in writing new code and adding capabilities.",
+        }
+    }
+
+    pub fn system_prompt_addition(&self) -> &'static str {
+        match self {
+            AgentMode::Understand => "\n\nYou are in UNDERSTAND mode. Your primary goal is to help the user understand the codebase. Focus on:\n- Explaining code structure and architecture\n- Identifying key components and their relationships\n- Clarifying how different parts work together\n- Providing context about design decisions\n- Helping navigate and explore the codebase",
+            AgentMode::Debug => "\n\nYou are in DEBUG mode. Your primary goal is to help identify and fix issues. Focus on:\n- Analyzing error messages and stack traces\n- Identifying root causes of bugs\n- Suggesting specific fixes with code examples\n- Explaining why issues occur\n- Recommending debugging strategies and tools",
+            AgentMode::Implement => "\n\nYou are in IMPLEMENT mode. Your primary goal is to help build new features. Focus on:\n- Writing new code that follows project conventions\n- Implementing requested functionality\n- Suggesting best practices and patterns\n- Ensuring code quality and maintainability\n- Integrating new features with existing code",
+        }
+    }
+
+    pub fn all() -> [AgentMode; 3] {
+        [AgentMode::Understand, AgentMode::Debug, AgentMode::Implement]
+    }
+
+    pub fn default_message(&self) -> &'static str {
+        match self {
+            AgentMode::Understand => "Understand the project",
+            AgentMode::Debug => "Help me debug this issue",
+            AgentMode::Implement => "Help me implement a feature",
+        }
+    }
+}
+
 pub struct AcpThreadView {
     agent: Rc<dyn AgentServer>,
     agent_server_store: Entity<AgentServerStore>,
@@ -298,6 +348,7 @@ pub struct AcpThreadView {
     _subscriptions: [Subscription; 5],
     show_codex_windows_warning: bool,
     in_flight_prompt: Option<Vec<acp::ContentBlock>>,
+    agent_mode: AgentMode,
 }
 
 enum ThreadState {
@@ -412,7 +463,7 @@ impl AcpThreadView {
             && project.read(cx).is_local()
             && agent.clone().downcast::<agent_servers::Codex>().is_some();
 
-        Self {
+        let mut this = Self {
             agent: agent.clone(),
             agent_server_store,
             workspace: workspace.clone(),
@@ -456,10 +507,18 @@ impl AcpThreadView {
             _cancel_task: None,
             focus_handle: cx.focus_handle(),
             new_server_version_available: None,
-            resume_thread_metadata: resume_thread,
+            resume_thread_metadata: resume_thread.clone(),
             show_codex_windows_warning,
             in_flight_prompt: None,
+            agent_mode: AgentMode::default(),
+        };
+
+        // Set initial message for new threads
+        if resume_thread.is_none() {
+            this.update_message_editor_for_mode(window, cx);
         }
+
+        this
     }
 
     fn reset(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1192,6 +1251,7 @@ impl AcpThreadView {
                 });
             })?;
             let turn_start_time = Instant::now();
+            let agent_mode = this.update(cx, |this, _| this.agent_mode)?;
             let send = thread.update(cx, |thread, cx| {
                 thread.action_log().update(cx, |action_log, cx| {
                     for buffer in tracked_buffers {
@@ -1208,7 +1268,19 @@ impl AcpThreadView {
                     mode = mode_id
                 );
 
-                thread.send(contents, cx)
+                // Only prepend agent mode context on the first message
+                let is_first_message = thread.entries().is_empty();
+                let final_contents = if is_first_message {
+                    let mut contents_with_mode = vec![
+                        agent_mode.system_prompt_addition().to_string().into()
+                    ];
+                    contents_with_mode.extend(contents);
+                    contents_with_mode
+                } else {
+                    contents
+                };
+
+                thread.send(final_contents, cx)
             })?;
             let res = send.await;
             let turn_time_ms = turn_start_time.elapsed().as_millis();
@@ -3501,7 +3573,7 @@ impl AcpThreadView {
         )
     }
 
-    fn render_hero_section(&self) -> impl IntoElement {
+    fn render_hero_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         v_flex()
             .justify_center()
             .items_center()
@@ -3543,7 +3615,148 @@ impl AcpThreadView {
                                     )
                             )
                     )
+                    .child(self.render_agent_mode_selector(cx))
             )
+    }
+
+    fn render_agent_mode_selector(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        v_flex()
+            .w_full()
+            .max_w(rems(36.0))
+            .gap_4()
+            .mt_6()
+            .child(
+                Label::new("Agent Mode")
+                    .size(LabelSize::Small)
+                    .weight(FontWeight::MEDIUM)
+            )
+            .child(
+                v_flex()
+                    .gap_2()
+                    .children(AgentMode::all().iter().enumerate().map(|(idx, mode)| {
+                        let is_selected = *mode == self.agent_mode;
+                        let mode_copy = *mode;
+                        
+                        div()
+                            .id(("agent-mode", idx))
+                            .w_full()
+                            .rounded_xl()
+                            .border_1()
+                            .border_color(if is_selected {
+                                cx.theme().colors().border_selected
+                            } else {
+                                cx.theme().colors().border_variant
+                            })
+                            .bg(if is_selected {
+                                cx.theme().colors().element_selected
+                            } else {
+                                cx.theme().colors().element_background
+                            })
+                            .hover(|style| {
+                                style.bg(if is_selected {
+                                    cx.theme().colors().element_selected
+                                } else {
+                                    cx.theme().colors().element_hover
+                                })
+                            })
+                            .cursor(CursorStyle::PointingHand)
+                            .on_click(cx.listener(move |this, _event: &ClickEvent, window, cx| {
+                                this.agent_mode = mode_copy;
+                                this.update_message_editor_for_mode(window, cx);
+                                cx.notify();
+                            }))
+                            .child(
+                                v_flex()
+                                    .p_3()
+                                    .gap_1()
+                                    .child(
+                                        h_flex()
+                                            .justify_between()
+                                            .items_center()
+                                            .child(
+                                                Label::new(mode.label())
+                                                    .size(LabelSize::Default)
+                                                    .weight(FontWeight::MEDIUM)
+                                                    .color(if is_selected {
+                                                        Color::Accent
+                                                    } else {
+                                                        Color::Default
+                                                    })
+                                            )
+                                            .when(is_selected, |this| {
+                                                this.child(
+                                                    Icon::new(IconName::Check)
+                                                        .size(IconSize::Small)
+                                                        .color(Color::Accent)
+                                                )
+                                            })
+                                    )
+                                    .child(
+                                        Label::new(mode.description())
+                                            .size(LabelSize::Small)
+                                            .color(Color::Muted)
+                                    )
+                            )
+                    }))
+            )
+    }
+
+    fn render_compact_agent_mode_selector(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let modes = [AgentMode::Understand, AgentMode::Debug, AgentMode::Implement];
+        
+        h_flex()
+            .gap_0p5()
+            .ml_1()
+            .child(
+                Label::new("Mode:")
+                    .size(LabelSize::Small)
+                    .color(Color::Muted)
+            )
+            .children(modes.iter().enumerate().map(|(idx, mode)| {
+                let is_selected = *mode == self.agent_mode;
+                let mode_copy = *mode;
+                let description = mode.description();
+                
+                Button::new(("compact-agent-mode", idx), mode.label())
+                    .label_size(LabelSize::Small)
+                    .style(if is_selected {
+                        ui::ButtonStyle::Filled
+                    } else {
+                        ui::ButtonStyle::Subtle
+                    })
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.agent_mode = mode_copy;
+                        this.update_message_editor_for_mode(window, cx);
+                        cx.notify();
+                    }))
+                    .tooltip(move |window, cx| {
+                        Tooltip::text(description)(window, cx)
+                    })
+            }))
+    }
+
+    fn update_message_editor_for_mode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Only update the message editor if it's empty and the thread has no messages
+        let should_update = if let ThreadState::Ready { thread, .. } = &self.thread_state {
+            thread.read(cx).entries().is_empty()
+        } else {
+            true
+        };
+
+        if should_update {
+            let current_text = self.message_editor.read(cx).text(cx);
+            // Only update if the editor is empty or contains a default message from another mode
+            let is_default_message = AgentMode::all()
+                .iter()
+                .any(|mode| current_text.trim() == mode.default_message());
+            
+            if current_text.trim().is_empty() || is_default_message {
+                let default_message = self.agent_mode.default_message();
+                self.message_editor.update(cx, |message_editor, cx| {
+                    message_editor.set_text_for_mode(default_message, window, cx);
+                });
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -3560,7 +3773,7 @@ impl AcpThreadView {
         v_flex()
             .size_full()
             .when(!render_history, |this| {
-                this.child(self.render_hero_section())
+                this.child(self.render_hero_section(cx))
             })
             .when(render_history, |this| {
                 let recent_history: Vec<_> = self.history_store.update(cx, |history_store, _| {
@@ -4459,7 +4672,8 @@ impl AcpThreadView {
                             .gap_0p5()
                             .child(self.render_add_context_button(cx))
                             .child(self.render_follow_toggle(cx))
-                            .children(self.render_burn_mode_toggle(cx)),
+                            .children(self.render_burn_mode_toggle(cx))
+                            .child(self.render_compact_agent_mode_selector(cx)),
                     )
                     .child(
                         h_flex()
@@ -6144,7 +6358,7 @@ impl Render for AcpThreadView {
                     .into_any_element(),
                 ThreadState::Loading { .. } => v_flex()
                     .flex_1()
-                    .child(self.render_hero_section())
+                    .child(self.render_hero_section(cx))
                     .into_any(),
                 ThreadState::LoadError(e) => v_flex()
                     .flex_1()
@@ -6175,7 +6389,7 @@ impl Render for AcpThreadView {
                         .vertical_scrollbar_for(&self.list_state, window, cx)
                         .into_any()
                     } else {
-                        this.child(self.render_hero_section()).into_any()
+                        this.child(self.render_hero_section(cx)).into_any()
                     }
                 }),
             })

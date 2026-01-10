@@ -1002,7 +1002,7 @@ impl Element for MarkdownElement {
                                         &self.code_block_renderer
                                     {
                                         parent_container = parent_container
-                                            .rounded_md()
+                                            .rounded_xl()
                                             .border_1()
                                             .border_color(cx.theme().colors().border_variant);
                                     }
@@ -1123,7 +1123,7 @@ impl Element for MarkdownElement {
                                     .mb_2()
                                     .border(px(1.5))
                                     .border_color(cx.theme().colors().border)
-                                    .rounded_sm()
+                                    .rounded_lg()
                                     .overflow_hidden(),
                                 range,
                                 markdown_end,

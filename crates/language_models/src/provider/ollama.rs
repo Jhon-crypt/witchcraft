@@ -398,7 +398,10 @@ impl OllamaLanguageModel {
                 temperature: request.temperature.or(Some(1.0)),
                 ..Default::default()
             }),
-            think: Some(false), // Thinking/reasoning mode disabled
+            think: self
+                .model
+                .supports_thinking
+                .map(|supports_thinking| supports_thinking && request.thinking_allowed),
             tools: if self.model.supports_tools.unwrap_or(false) {
                 request.tools.into_iter().map(tool_into_ollama).collect()
             } else {
@@ -517,6 +520,15 @@ impl LanguageModel for OllamaLanguageModel {
                         });
                     }
                     
+                    // Check if it's a 400 Bad Request with JSON schema error
+                    if error_str.contains("400") && (error_str.contains("JSON Schema") || error_str.contains("schema")) {
+                        log::error!("Ollama rejected tool schema. This may indicate an incompatible Ollama version or unsupported schema format. Error: {}", error_str);
+                        return Err(LanguageModelCompletionError::Other(anyhow!(
+                            "Ollama API rejected the request due to incompatible tool schema. Please update Ollama to the latest version or disable tool support for this model. Error: {}",
+                            error_str
+                        )));
+                    }
+                    
                     Err(LanguageModelCompletionError::from(e))
                 }
             }
@@ -571,15 +583,14 @@ fn map_to_language_model_completion_events(
                     content,
                     tool_calls,
                     images: _,
-                    thinking: _thinking, // Thinking mode disabled - ignore thinking field
+                    thinking,
                 } => {
-                    // Thinking/reasoning mode disabled - skip rendering thinking blocks
-                    // if let Some(text) = thinking {
-                    //     events.push(Ok(LanguageModelCompletionEvent::Thinking {
-                    //         text,
-                    //         signature: None,
-                    //     }));
-                    // }
+                    if let Some(text) = thinking {
+                        events.push(Ok(LanguageModelCompletionEvent::Thinking {
+                            text,
+                            signature: None,
+                        }));
+                    }
 
                     if let Some(tool_call) = tool_calls.and_then(|v| v.into_iter().next()) {
                         let OllamaToolCall { id, function } = tool_call;
@@ -893,12 +904,74 @@ fn merge_settings_into_models(
     }
 }
 
+fn sanitize_schema_for_ollama(schema: serde_json::Value) -> serde_json::Value {
+    match schema {
+        serde_json::Value::Object(mut map) => {
+            // Remove problematic fields that Ollama doesn't support
+            map.remove("$schema");
+            map.remove("additionalProperties");
+            map.remove("title");
+            
+            // If this is a property definition with just a description and no type,
+            // Ollama doesn't understand it. We need to ensure it has a type.
+            if map.contains_key("description") && !map.contains_key("type") && !map.contains_key("properties") && !map.contains_key("items") {
+                // This looks like a malformed property - add a default type
+                map.insert("type".to_string(), serde_json::Value::String("string".to_string()));
+            }
+            
+            // Recursively sanitize nested objects in properties
+            if let Some(properties) = map.get_mut("properties") {
+                if let serde_json::Value::Object(props) = properties {
+                    for (_key, value) in props.iter_mut() {
+                        *value = sanitize_schema_for_ollama(value.clone());
+                    }
+                }
+            }
+            
+            // Recursively sanitize nested objects in definitions
+            if let Some(definitions) = map.get_mut("definitions") {
+                if let serde_json::Value::Object(defs) = definitions {
+                    for (_key, value) in defs.iter_mut() {
+                        *value = sanitize_schema_for_ollama(value.clone());
+                    }
+                }
+            }
+            
+            // Sanitize items in arrays
+            if let Some(items) = map.get_mut("items") {
+                *items = sanitize_schema_for_ollama(items.clone());
+            }
+            
+            // Sanitize anyOf, oneOf, allOf
+            for key in &["anyOf", "oneOf", "allOf"] {
+                if let Some(variants) = map.get_mut(*key) {
+                    if let serde_json::Value::Array(arr) = variants {
+                        *arr = arr.iter().map(|v| sanitize_schema_for_ollama(v.clone())).collect();
+                    }
+                }
+            }
+            
+            serde_json::Value::Object(map)
+        }
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(
+                arr.into_iter()
+                    .map(sanitize_schema_for_ollama)
+                    .collect()
+            )
+        }
+        other => other,
+    }
+}
+
 fn tool_into_ollama(tool: LanguageModelRequestTool) -> ollama::OllamaTool {
+    let sanitized_schema = sanitize_schema_for_ollama(tool.input_schema);
+    
     ollama::OllamaTool::Function {
         function: OllamaFunctionTool {
             name: tool.name,
             description: Some(tool.description),
-            parameters: Some(tool.input_schema),
+            parameters: Some(sanitized_schema),
         },
     }
 }

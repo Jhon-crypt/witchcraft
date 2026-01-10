@@ -52,9 +52,9 @@ pub use ::settings::{
 };
 
 /// Defines window border radius for platforms that use client side decorations.
-pub const CLIENT_SIDE_DECORATION_ROUNDING: Pixels = px(10.0);
+pub const CLIENT_SIDE_DECORATION_ROUNDING: Pixels = px(24.0);
 /// Defines window shadow size for platforms that use client side decorations.
-pub const CLIENT_SIDE_DECORATION_SHADOW: Pixels = px(10.0);
+pub const CLIENT_SIDE_DECORATION_SHADOW: Pixels = px(16.0);
 
 /// The appearance of the theme.
 #[derive(Debug, PartialEq, Clone, Copy, Deserialize)]

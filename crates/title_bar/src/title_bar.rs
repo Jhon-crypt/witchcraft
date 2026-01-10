@@ -178,7 +178,8 @@ impl Render for TitleBar {
                 .into_any_element(),
         );
 
-        children.push(self.render_collaborator_list(window, cx).into_any_element());
+        // Hide collaborator list for Witchcraft
+        // children.push(self.render_collaborator_list(window, cx).into_any_element());
 
         if title_bar_settings.show_onboarding_banner {
             children.push(self.banner.clone().into_any_element())

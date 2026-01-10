@@ -285,7 +285,7 @@ impl Onboarding {
                     .px_16()
                     .child(
                         // App Icon/Logo
-                        Vector::square(VectorName::ZedLogo, rems(6.0))
+                        Vector::square(VectorName::WitchcraftLogo, rems(6.0))
                             .color(Color::Default)
                     )
                     .child(

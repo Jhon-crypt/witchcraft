@@ -86,7 +86,11 @@ enum SupermavenButtonStatus {
 
 impl Render for EditPredictionButton {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Hide the edit prediction button entirely for Witchcraft
+        return div().hidden();
+        
         // Return empty div if AI is disabled
+        #[allow(unreachable_code)]
         if DisableAiSettings::get_global(cx).disable_ai {
             return div().hidden();
         }
@@ -212,7 +216,7 @@ impl Render for EditPredictionButton {
                                         cx.open_url(activate_url.as_str())
                                     })
                                     .entry(
-                                        "Use Zed AI",
+                                        "Use Witchcraft AI",
                                         None,
                                         move |_, cx| {
                                             set_completion_provider(
@@ -591,7 +595,7 @@ impl EditPredictionButton {
                 let fs = self.fs.clone();
 
                 let name = match provider {
-                    EditPredictionProvider::Zed => "Zed AI",
+                    EditPredictionProvider::Zed => "Witchcraft AI",
                     EditPredictionProvider::Copilot => "GitHub Copilot",
                     EditPredictionProvider::Supermaven => "Supermaven",
                     EditPredictionProvider::Codestral => "Codestral",
@@ -635,7 +639,7 @@ impl EditPredictionButton {
                     move |_window, cx| hide_copilot(fs.clone(), cx)
                 })
                 .separator()
-                .entry("Use Zed AI", None, {
+                .entry("Use Witchcraft AI", None, {
                     let fs = fs.clone();
                     move |_window, cx| {
                         set_completion_provider(fs.clone(), cx, EditPredictionProvider::Zed)

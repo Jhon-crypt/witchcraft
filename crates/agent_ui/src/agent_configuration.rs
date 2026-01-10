@@ -458,7 +458,7 @@ impl AgentConfiguration {
                     .gap_3()
                     .items_center()
                     .child(
-                        ui::Vector::square(ui::VectorName::ZedLogo, rems(6.0))
+                        ui::Vector::square(ui::VectorName::WitchcraftLogo, rems(6.0))
                             .color(Color::Muted)
                     )
                     .child(

@@ -3586,7 +3586,7 @@ impl AcpThreadView {
                     .w_full()
                     .max_w(rems(40.0))
                     .child(
-                        ui::Vector::square(ui::VectorName::ZedLogo, rems(8.0))
+                        ui::Vector::square(ui::VectorName::WitchcraftLogo, rems(8.0))
                             .color(Color::Muted)
                     )
                     .child(
@@ -4037,7 +4037,7 @@ impl AcpThreadView {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let (heading_label, description_label) = (
-            format!("Upgrade {} to work with Zed", self.agent.name()),
+            format!("Upgrade {} to work with Witchcraft", self.agent.name()),
             if version.is_empty() {
                 format!(
                     "Currently using {}, which does not report a valid --version",
@@ -4983,7 +4983,7 @@ impl AcpThreadView {
                 format!("Stop Following {}", self.agent.name())
             }
         } else {
-            if self.agent.name() == "Zed Agent" {
+            if self.agent.name() == "Witchcraft Agent" {
                 format!("Follow the {}", self.agent.name())
             } else {
                 format!("Follow {}", self.agent.name())
@@ -5945,7 +5945,7 @@ impl AcpThreadView {
     }
 
     fn current_model_name(&self, cx: &App) -> SharedString {
-        // For native agent (Zed Agent), use the specific model name (e.g., "Claude 3.5 Sonnet")
+        // For native agent (Witchcraft Agent), use the specific model name (e.g., "Claude 3.5 Sonnet")
         // For ACP agents, use the agent name (e.g., "Claude Code", "Gemini CLI")
         // This provides better clarity about what refused the request
         if self.as_native_connection(cx).is_some() {
@@ -6397,24 +6397,24 @@ impl Render for AcpThreadView {
                     if has_messages {
                         this.child(self.render_mode_indicator(cx))
                             .child(
-                                list(
-                                    self.list_state.clone(),
-                                    cx.processor(|this, index: usize, window, cx| {
-                                        let Some((entry, len)) = this.thread().and_then(|thread| {
-                                            let entries = &thread.read(cx).entries();
-                                            Some((entries.get(index)?, entries.len()))
-                                        }) else {
-                                            return Empty.into_any();
-                                        };
-                                        this.render_entry(index, len, entry, window, cx)
-                                    }),
-                                )
-                                .with_sizing_behavior(gpui::ListSizingBehavior::Auto)
-                                .flex_grow()
-                                .into_any(),
+                            list(
+                                self.list_state.clone(),
+                                cx.processor(|this, index: usize, window, cx| {
+                                    let Some((entry, len)) = this.thread().and_then(|thread| {
+                                        let entries = &thread.read(cx).entries();
+                                        Some((entries.get(index)?, entries.len()))
+                                    }) else {
+                                        return Empty.into_any();
+                                    };
+                                    this.render_entry(index, len, entry, window, cx)
+                                }),
                             )
-                            .vertical_scrollbar_for(&self.list_state, window, cx)
-                            .into_any()
+                            .with_sizing_behavior(gpui::ListSizingBehavior::Auto)
+                            .flex_grow()
+                            .into_any(),
+                        )
+                        .vertical_scrollbar_for(&self.list_state, window, cx)
+                        .into_any()
                     } else {
                         this.child(self.render_hero_section(cx)).into_any()
                     }

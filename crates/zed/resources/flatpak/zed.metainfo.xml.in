@@ -6,12 +6,12 @@
 
     <name>$APP_NAME</name>
     <summary>High-performance, multiplayer code editor</summary>
-    <developer id="dev.zed">
-        <name translate="no">Zed Industries, Inc.</name>
+    <developer id="dev.witchcraft">
+        <name translate="no">Witchcraft</name>
     </developer>
     <description>
         <p>
-            Productive coding starts with a tool that stays out of your way. Zed blends the power of an IDE with the speed of a lightweight editor for productivity you can feel under your fingertips.
+            Productive coding starts with a tool that stays out of your way. Witchcraft blends the power of an IDE with the speed of a lightweight editor for productivity you can feel under your fingertips.
         </p>
         <p>Features:</p>
         <ul>

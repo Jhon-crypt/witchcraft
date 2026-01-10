@@ -3735,6 +3735,32 @@ impl AcpThreadView {
             }))
     }
 
+    fn render_mode_indicator(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        h_flex()
+            .justify_center()
+            .p_2()
+            .child(
+                h_flex()
+                    .gap_1p5()
+                    .px_3()
+                    .py_1()
+                    .rounded_lg()
+                    .bg(cx.theme().colors().element_background)
+                    .border_1()
+                    .border_color(cx.theme().colors().border_variant)
+                    .child(
+                        Icon::new(IconName::Sparkle)
+                            .size(IconSize::Small)
+                            .color(Color::Accent)
+                    )
+                    .child(
+                        Label::new(format!("Agent Mode: {}", self.agent_mode.label()))
+                            .size(LabelSize::Small)
+                            .color(Color::Accent)
+                    )
+            )
+    }
+
     fn update_message_editor_for_mode(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         // Only update the message editor if it's empty and the thread has no messages
         let should_update = if let ThreadState::Ready { thread, .. } = &self.thread_state {
@@ -6369,25 +6395,26 @@ impl Render for AcpThreadView {
                     .into_any(),
                 ThreadState::Ready { .. } => v_flex().flex_1().map(|this| {
                     if has_messages {
-                        this.child(
-                            list(
-                                self.list_state.clone(),
-                                cx.processor(|this, index: usize, window, cx| {
-                                    let Some((entry, len)) = this.thread().and_then(|thread| {
-                                        let entries = &thread.read(cx).entries();
-                                        Some((entries.get(index)?, entries.len()))
-                                    }) else {
-                                        return Empty.into_any();
-                                    };
-                                    this.render_entry(index, len, entry, window, cx)
-                                }),
+                        this.child(self.render_mode_indicator(cx))
+                            .child(
+                                list(
+                                    self.list_state.clone(),
+                                    cx.processor(|this, index: usize, window, cx| {
+                                        let Some((entry, len)) = this.thread().and_then(|thread| {
+                                            let entries = &thread.read(cx).entries();
+                                            Some((entries.get(index)?, entries.len()))
+                                        }) else {
+                                            return Empty.into_any();
+                                        };
+                                        this.render_entry(index, len, entry, window, cx)
+                                    }),
+                                )
+                                .with_sizing_behavior(gpui::ListSizingBehavior::Auto)
+                                .flex_grow()
+                                .into_any(),
                             )
-                            .with_sizing_behavior(gpui::ListSizingBehavior::Auto)
-                            .flex_grow()
-                            .into_any(),
-                        )
-                        .vertical_scrollbar_for(&self.list_state, window, cx)
-                        .into_any()
+                            .vertical_scrollbar_for(&self.list_state, window, cx)
+                            .into_any()
                     } else {
                         this.child(self.render_hero_section(cx)).into_any()
                     }

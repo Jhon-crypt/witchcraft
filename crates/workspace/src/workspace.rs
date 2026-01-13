@@ -18,6 +18,7 @@ mod toast_layer;
 mod toolbar;
 pub mod utility_pane;
 pub mod welcome;
+pub mod welcome_file;
 mod workspace_settings;
 
 pub use crate::notifications::NotificationFrame;
@@ -6705,6 +6706,7 @@ fn open_items(
 
     cx.spawn_in(window, async move |workspace, cx| {
         let mut opened_items = Vec::with_capacity(project_paths_to_open.len());
+        let is_new_workspace = restored_items.is_none();
 
         if let Some(restored_items) = restored_items {
             let restored_items = restored_items.await?;
@@ -6783,6 +6785,27 @@ fn open_items(
         let tasks = futures::future::join_all(tasks);
         for (ix, path_open_result) in tasks.await.into_iter().flatten() {
             opened_items[ix] = Some(path_open_result);
+        }
+
+        // Show welcome file if opening a new folder with no previous workspace and no files opened
+        let should_show_welcome_file = workspace
+            .update(cx, |workspace, cx| {
+                let has_opened_items = opened_items.iter().any(|item| item.is_some());
+                let has_worktrees = !workspace.project().read(cx).worktrees(cx).collect::<Vec<_>>().is_empty();
+                
+                is_new_workspace && has_worktrees && !has_opened_items
+            })
+            .unwrap_or(false);
+
+        if should_show_welcome_file {
+            workspace
+                .update_in(cx, |workspace, window, cx| {
+                    let welcome_file = cx.new(|cx| {
+                        crate::welcome_file::WelcomeFile::new(workspace.weak_handle(), window, cx)
+                    });
+                    workspace.add_item_to_center(Box::new(welcome_file), window, cx);
+                })
+                .log_err();
         }
 
         Ok(opened_items)

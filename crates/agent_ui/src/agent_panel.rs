@@ -1585,7 +1585,7 @@ impl Panel for AgentPanel {
     }
 
     fn icon(&self, _window: &Window, cx: &App) -> Option<IconName> {
-        (self.enabled(cx) && AgentSettings::get_global(cx).button).then_some(IconName::ZedAssistant)
+        None
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
@@ -2117,14 +2117,9 @@ impl AgentPanel {
                                     }),
                             )
                             .separator()
-                            .header("External Agents")
                             .item(
-                                ContextMenuEntry::new("Claude Code")
-                                    .when(is_agent_selected(AgentType::ClaudeCode), |this| {
-                                        this.action(Box::new(NewExternalAgentThread { agent: None }))
-                                    })
-                                    .icon(IconName::AiClaude)
-                                    .disabled(is_via_collab)
+                                ContextMenuEntry::new("History")
+                                    .icon(IconName::HistoryRerun)
                                     .icon_color(Color::Muted)
                                     .handler({
                                         let workspace = workspace.clone();
@@ -2135,156 +2130,11 @@ impl AgentPanel {
                                                         workspace.panel::<AgentPanel>(cx)
                                                     {
                                                         panel.update(cx, |panel, cx| {
-                                                            panel.new_agent_thread(
-                                                                AgentType::ClaudeCode,
-                                                                window,
-                                                                cx,
-                                                            );
+                                                            panel.open_history(window, cx);
                                                         });
                                                     }
                                                 });
                                             }
-                                        }
-                                    }),
-                            )
-                            .item(
-                                ContextMenuEntry::new("Codex CLI")
-                                    .when(is_agent_selected(AgentType::Codex), |this| {
-                                        this.action(Box::new(NewExternalAgentThread { agent: None }))
-                                    })
-                                    .icon(IconName::AiOpenAi)
-                                    .disabled(is_via_collab)
-                                    .icon_color(Color::Muted)
-                                    .handler({
-                                        let workspace = workspace.clone();
-                                        move |window, cx| {
-                                            if let Some(workspace) = workspace.upgrade() {
-                                                workspace.update(cx, |workspace, cx| {
-                                                    if let Some(panel) =
-                                                        workspace.panel::<AgentPanel>(cx)
-                                                    {
-                                                        panel.update(cx, |panel, cx| {
-                                                            panel.new_agent_thread(
-                                                                AgentType::Codex,
-                                                                window,
-                                                                cx,
-                                                            );
-                                                        });
-                                                    }
-                                                });
-                                            }
-                                        }
-                                    }),
-                            )
-                            .item(
-                                ContextMenuEntry::new("Gemini CLI")
-                                    .when(is_agent_selected(AgentType::Gemini), |this| {
-                                        this.action(Box::new(NewExternalAgentThread { agent: None }))
-                                    })
-                                    .icon(IconName::AiGemini)
-                                    .icon_color(Color::Muted)
-                                    .disabled(is_via_collab)
-                                    .handler({
-                                        let workspace = workspace.clone();
-                                        move |window, cx| {
-                                            if let Some(workspace) = workspace.upgrade() {
-                                                workspace.update(cx, |workspace, cx| {
-                                                    if let Some(panel) =
-                                                        workspace.panel::<AgentPanel>(cx)
-                                                    {
-                                                        panel.update(cx, |panel, cx| {
-                                                            panel.new_agent_thread(
-                                                                AgentType::Gemini,
-                                                                window,
-                                                                cx,
-                                                            );
-                                                        });
-                                                    }
-                                                });
-                                            }
-                                        }
-                                    }),
-                            )
-                            .map(|mut menu| {
-                                let agent_server_store = agent_server_store.read(cx);
-                                let agent_names = agent_server_store
-                                    .external_agents()
-                                    .filter(|name| {
-                                        name.0 != GEMINI_NAME
-                                            && name.0 != CLAUDE_CODE_NAME
-                                            && name.0 != CODEX_NAME
-                                    })
-                                    .cloned()
-                                    .collect::<Vec<_>>();
-
-                                for agent_name in agent_names {
-                                    let icon_path = agent_server_store.agent_icon(&agent_name);
-                                    let display_name = agent_server_store
-                                        .agent_display_name(&agent_name)
-                                        .unwrap_or_else(|| agent_name.0.clone());
-
-                                    let mut entry = ContextMenuEntry::new(display_name);
-
-                                    if let Some(icon_path) = icon_path {
-                                        entry = entry.custom_icon_svg(icon_path);
-                                    } else {
-                                        entry = entry.icon(IconName::Sparkle);
-                                    }
-                                    entry = entry
-                                        .when(
-                                            is_agent_selected(AgentType::Custom {
-                                                name: agent_name.0.clone(),
-                                            }),
-                                            |this| {
-                                                this.action(Box::new(NewExternalAgentThread { agent: None }))
-                                            },
-                                        )
-                                        .icon_color(Color::Muted)
-                                        .disabled(is_via_collab)
-                                        .handler({
-                                            let workspace = workspace.clone();
-                                            let agent_name = agent_name.clone();
-                                            move |window, cx| {
-                                                if let Some(workspace) = workspace.upgrade() {
-                                                    workspace.update(cx, |workspace, cx| {
-                                                        if let Some(panel) =
-                                                            workspace.panel::<AgentPanel>(cx)
-                                                        {
-                                                            panel.update(cx, |panel, cx| {
-                                                                panel.new_agent_thread(
-                                                                    AgentType::Custom {
-                                                                        name: agent_name
-                                                                            .clone()
-                                                                            .into(),
-                                                                    },
-                                                                    window,
-                                                                    cx,
-                                                                );
-                                                            });
-                                                        }
-                                                    });
-                                                }
-                                            }
-                                        });
-
-                                    menu = menu.item(entry);
-                                }
-
-                                menu
-                            })
-                            .separator()
-                            .item(
-                                ContextMenuEntry::new("Add More Agents")
-                                    .icon(IconName::Plus)
-                                    .icon_color(Color::Muted)
-                                    .handler({
-                                        move |window, cx| {
-                                            window.dispatch_action(Box::new(zed_actions::Extensions {
-                                                category_filter: Some(
-                                                    zed_actions::ExtensionCategoryFilter::AgentServers,
-                                                ),
-                                                id: None,
-                                            }), cx)
                                         }
                                     }),
                             )

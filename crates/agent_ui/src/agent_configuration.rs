@@ -1251,7 +1251,6 @@ impl Render for AgentConfiguration {
                             .track_scroll(&self.scroll_handle)
                             .size_full()
                             .overflow_y_scroll()
-                            .child(self.render_agent_servers_section(cx))
                             .child(self.render_context_servers_section(window, cx))
                             .child(self.render_provider_configuration_section(cx)),
                     )

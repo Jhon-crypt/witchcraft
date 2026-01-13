@@ -831,8 +831,8 @@ impl Render for ConfigurationView {
             .gap_2()
             .when(show_connection_ui, |this| {
                 this.child(Self::render_instructions(cx))
-                    .child(self.render_api_url_editor(cx))
-                    .child(self.render_api_key_editor(cx))
+            .child(self.render_api_url_editor(cx))
+            .child(self.render_api_key_editor(cx))
             })
             .child(
                 h_flex()

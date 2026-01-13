@@ -117,16 +117,8 @@ pub fn app_menus(cx: &mut App) -> Vec<Menu> {
                 MenuItem::action("New", workspace::NewFile),
                 MenuItem::action("New Window", workspace::NewWindow),
                 MenuItem::separator(),
-                #[cfg(not(target_os = "macos"))]
-                MenuItem::action("Open File...", workspace::OpenFiles),
-                MenuItem::action(
-                    if cfg!(not(target_os = "macos")) {
-                        "Open Folder..."
-                    } else {
-                        "Open…"
-                    },
-                    workspace::Open,
-                ),
+                MenuItem::action("Open...", workspace::Open),
+                MenuItem::action("Open Folder...", workspace::Open),
                 MenuItem::action(
                     "Open Recent...",
                     zed_actions::OpenRecent {

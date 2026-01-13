@@ -2046,6 +2046,10 @@
     },
     "ollama": {
       "api_url": "http://localhost:11434",
+      // Whether to show the connection UI for configuring Ollama server URL and API key.
+      // Set to false to hide the connection configuration section in settings.
+      // Default: true
+      "show_connection_ui": false,
     },
     "openai": {
       "api_url": "https://api.openai.com/v1",

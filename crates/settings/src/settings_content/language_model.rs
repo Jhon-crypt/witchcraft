@@ -96,6 +96,8 @@ pub struct OllamaSettingsContent {
     pub api_url: Option<String>,
     pub auto_discover: Option<bool>,
     pub available_models: Option<Vec<OllamaAvailableModel>>,
+    /// Whether to show the connection UI for configuring Ollama server URL and API key
+    pub show_connection_ui: Option<bool>,
 }
 
 #[with_fallible_options]

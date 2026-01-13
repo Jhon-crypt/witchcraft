@@ -49,6 +49,7 @@ pub struct OllamaSettings {
     pub api_url: String,
     pub auto_discover: bool,
     pub available_models: Vec<AvailableModel>,
+    pub show_connection_ui: bool,
 }
 
 pub struct OllamaLanguageModelProvider {
@@ -822,12 +823,17 @@ impl ConfigurationView {
 impl Render for ConfigurationView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let is_authenticated = self.state.read(cx).is_authenticated();
+        let show_connection_ui = AllLanguageModelSettings::get_global(cx)
+            .ollama
+            .show_connection_ui;
 
         v_flex()
             .gap_2()
-            .child(Self::render_instructions(cx))
-            .child(self.render_api_url_editor(cx))
-            .child(self.render_api_key_editor(cx))
+            .when(show_connection_ui, |this| {
+                this.child(Self::render_instructions(cx))
+                    .child(self.render_api_url_editor(cx))
+                    .child(self.render_api_key_editor(cx))
+            })
             .child(
                 h_flex()
                     .w_full()

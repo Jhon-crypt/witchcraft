@@ -114,10 +114,10 @@ impl Render for WelcomeFile {
                             .child(
                                 v_flex()
                                     .gap_3()
-                                    .child(self.render_feature("✨", "Understanding Your Project", "Get instant context about your codebase, architecture, and dependencies"))
-                                    .child(self.render_feature("🐛", "Debugging Issues", "Identify and fix bugs faster with AI-powered analysis"))
-                                    .child(self.render_feature("⚡", "Implementing Features", "Generate code, refactor existing code, and implement new features efficiently"))
-                                    .child(self.render_feature("🎯", "Smart Suggestions", "Receive intelligent code completions and best practice recommendations"))
+                                    .child(self.render_feature("Understanding Your Project", "Get instant context about your codebase, architecture, and dependencies"))
+                                    .child(self.render_feature("Debugging Issues", "Identify and fix bugs faster with AI-powered analysis"))
+                                    .child(self.render_feature("Implementing Features", "Generate code, refactor existing code, and implement new features efficiently"))
+                                    .child(self.render_feature("Smart Suggestions", "Receive intelligent code completions and best practice recommendations"))
                             )
                             .child(
                                 v_flex()
@@ -164,28 +164,18 @@ impl Render for WelcomeFile {
 }
 
 impl WelcomeFile {
-    fn render_feature(&self, icon: &'static str, title: &'static str, description: &'static str) -> impl IntoElement {
-        h_flex()
-            .gap_3()
+    fn render_feature(&self, title: &'static str, description: &'static str) -> impl IntoElement {
+        v_flex()
+            .gap_1()
             .child(
-                div()
-                    .flex_none()
-                    .w(px(24.0))
-                    .child(Label::new(icon).size(LabelSize::Default))
+                Label::new(title)
+                    .size(LabelSize::Default)
+                    .weight(FontWeight::SEMIBOLD)
             )
             .child(
-                v_flex()
-                    .gap_1()
-                    .child(
-                        Label::new(title)
-                            .size(LabelSize::Default)
-                            .weight(FontWeight::SEMIBOLD)
-                    )
-                    .child(
-                        Label::new(description)
-                            .size(LabelSize::Small)
-                            .color(Color::Muted)
-                    )
+                Label::new(description)
+                    .size(LabelSize::Small)
+                    .color(Color::Muted)
             )
     }
 }

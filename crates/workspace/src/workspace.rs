@@ -6706,7 +6706,6 @@ fn open_items(
 
     cx.spawn_in(window, async move |workspace, cx| {
         let mut opened_items = Vec::with_capacity(project_paths_to_open.len());
-        let is_new_workspace = restored_items.is_none();
 
         if let Some(restored_items) = restored_items {
             let restored_items = restored_items.await?;
@@ -6787,13 +6786,13 @@ fn open_items(
             opened_items[ix] = Some(path_open_result);
         }
 
-        // Show welcome file if opening a new folder with no previous workspace and no files opened
+        // Show welcome file if opening a folder with no files opened
         let should_show_welcome_file = workspace
             .update(cx, |workspace, cx| {
                 let has_opened_items = opened_items.iter().any(|item| item.is_some());
                 let has_worktrees = !workspace.project().read(cx).worktrees(cx).collect::<Vec<_>>().is_empty();
                 
-                is_new_workspace && has_worktrees && !has_opened_items
+                has_worktrees && !has_opened_items
             })
             .unwrap_or(false);
 

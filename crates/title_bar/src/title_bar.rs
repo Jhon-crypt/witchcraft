@@ -842,6 +842,7 @@ impl TitleBar {
             // Since the user might be on the legacy free plan we filter based on whether we have a subscription period.
             has_subscription_period
         });
+        let has_witchcraft = witchcraft_credentials().is_some();
 
         let free_chip_bg = cx
             .theme()
@@ -911,6 +912,12 @@ impl TitleBar {
                         "Extensions",
                         zed_actions::Extensions::default().boxed_clone(),
                     )
+                    .when(has_witchcraft, |this| {
+                        this.separator().action(
+                            "Log out of Witchcraft",
+                            zed_actions::LogOutWitchcraft.boxed_clone(),
+                        )
+                    })
                     .when(is_signed_in, |this| {
                         this.separator()
                             .action("Sign Out", client::SignOut.boxed_clone())

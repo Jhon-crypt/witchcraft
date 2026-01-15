@@ -74,6 +74,8 @@ actions!(
         OpenOnboarding,
         /// Opens the Witchcraft access code modal used to finish editor sign-in.
         OpenAccessCodeModal,
+        /// Logs out of Witchcraft editor access and clears stored credentials.
+        LogOutWitchcraft,
     ]
 );
 

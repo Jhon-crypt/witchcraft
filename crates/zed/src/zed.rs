@@ -80,6 +80,7 @@ use util::rel_path::RelPath;
 use util::{ResultExt, asset_str};
 use uuid::Uuid;
 use witchcraft_access_modal::WitchcraftAccessCodeModal;
+use crate::zed::auth_manager::AuthManager;
 use vim_mode_setting::VimModeSetting;
 use workspace::notifications::{
     NotificationId, SuppressEvent, dismiss_app_notification, show_app_notification,
@@ -230,6 +231,15 @@ pub fn init(cx: &mut App) {
     .on_action(|_: &zed_actions::OpenAccessCodeModal, cx| {
         with_active_or_new_workspace(cx, |workspace, window, cx| {
             WitchcraftAccessCodeModal::toggle(workspace, window, cx);
+        });
+    })
+    .on_action(|_: &zed_actions::LogOutWitchcraft, cx| {
+        with_active_or_new_workspace(cx, |_, _, cx| {
+            if let Some(manager) = AuthManager::global_entity(cx) {
+                manager.update(cx, |auth, cx| {
+                    auth.sign_out(cx);
+                });
+            }
         });
     })
     .on_action(|_: &OpenTasks, cx| {

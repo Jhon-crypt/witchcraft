@@ -39,10 +39,11 @@ use prompt_store::{PromptId, PromptStore};
 use rope::Point;
 use settings::{NotifyWhenAgentWaiting, Settings as _, SettingsStore};
 use std::cell::RefCell;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 use std::{collections::BTreeMap, rc::Rc, time::Duration};
+use dirs;
 use terminal_view::terminal_panel::TerminalPanel;
 use text::Anchor;
 use theme::{AgentFontSize, ThemeSettings};
@@ -376,6 +377,13 @@ struct LoadingView {
 }
 
 impl AcpThreadView {
+    fn has_witchcraft_credentials() -> bool {
+        let config_dir = dirs::config_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join("witchcraft");
+        let config_file = config_dir.join("credentials.json");
+        config_file.exists()
+    }
     pub fn new(
         agent: Rc<dyn AgentServer>,
         resume_thread: Option<DbThreadMetadata>,
@@ -1115,6 +1123,19 @@ impl AcpThreadView {
         let Some(thread) = self.thread() else { return };
 
         if self.is_loading_contents {
+            return;
+        }
+
+        // If using the native Witchcraft Agent without credentials, block sending
+        // and surface an authentication error to the user.
+        if self.agent.name() == "Witchcraft Agent" && !Self::has_witchcraft_credentials() {
+            self.handle_load_error(
+                anyhow::anyhow!(
+                    "You need to sign in with GitHub to use the Witchcraft agent."
+                ),
+                window,
+                cx,
+            );
             return;
         }
 
@@ -4019,12 +4040,22 @@ impl AcpThreadView {
             ),
         };
 
+        let dismiss_button = IconButton::new("dismiss-load-error", IconName::Close)
+            .icon_size(IconSize::Small)
+            .tooltip(Tooltip::text("Dismiss"))
+            .on_click(cx.listener(|this, _, window, cx| {
+                this.thread_error = None;
+                this.thread_error_markdown = None;
+                this.reset(window, cx);
+            }));
+
         Callout::new()
             .severity(Severity::Error)
             .icon(IconName::XCircleFilled)
             .title(title)
             .description(message)
             .actions_slot(div().children(action_slot))
+            .dismiss_action(dismiss_button)
             .into_any_element()
     }
 

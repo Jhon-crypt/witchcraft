@@ -103,6 +103,8 @@ zed_actions.workspace = true
 image.workspace = true
 async-fs.workspace = true
 reqwest_client = { workspace = true, optional = true }
+open = "5.0"
+dirs = "5.0"
 
 [dev-dependencies]
 acp_thread = { workspace = true, features = ["test-support"] }

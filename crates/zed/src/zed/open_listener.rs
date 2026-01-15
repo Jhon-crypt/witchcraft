@@ -45,6 +45,9 @@ pub struct OpenRequest {
 #[derive(Debug)]
 pub enum OpenRequestKind {
     CliConnection((mpsc::Receiver<CliRequest>, IpcSender<CliResponse>)),
+    WitchcraftAuthCallback {
+        url: String,
+    },
     Extension {
         extension_id: String,
     },
@@ -135,6 +138,12 @@ impl OpenRequest {
                         this.open_channel_notes.push((channel_id, heading));
                     }
                 }
+            } else if url.starts_with("witchcraft://") {
+                // Handle Witchcraft OAuth callback
+                log::info!("Received witchcraft:// URL: {}", url);
+                this.kind = Some(OpenRequestKind::WitchcraftAuthCallback {
+                    url: url.clone(),
+                });
             } else {
                 log::error!("unhandled url: {}", url);
             }

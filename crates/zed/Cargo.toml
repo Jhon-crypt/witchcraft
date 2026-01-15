@@ -166,6 +166,8 @@ zed_env_vars.workspace = true
 zlog.workspace = true
 zlog_settings.workspace = true
 chrono.workspace = true
+dirs = "5.0"
+open = "5.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows.workspace = true

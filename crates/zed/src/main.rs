@@ -390,6 +390,7 @@ fn main() {
     app.on_open_urls({
         let open_listener = open_listener.clone();
         move |urls| {
+            log::info!("on_open_urls called with URLs: {:?}", urls);
             open_listener.open(RawOpenRequest {
                 urls,
                 diff_paths: Vec::new(),
@@ -430,6 +431,7 @@ fn main() {
             AppCommitSha::set_global(app_commit_sha, cx);
         }
         settings::init(cx);
+        zed::auth_manager::AuthManager::init(cx);
         zlog_settings::init(cx);
         handle_settings_file_changes(user_settings_file_rx, global_settings_file_rx, cx);
         handle_keymap_file_changes(user_keymap_file_rx, cx);
@@ -779,6 +781,8 @@ fn main() {
         cx.spawn(async move |cx| {
             while let Some(urls) = open_rx.next().await {
                 cx.update(|cx| {
+                    // Activate the app when receiving external URL requests (e.g., from browser)
+                    cx.activate(true);
                     if let Some(request) = OpenRequest::parse(urls, cx).log_err() {
                         handle_open_request(request, app_state.clone(), cx);
                     }
@@ -793,6 +797,9 @@ fn main() {
 fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &mut App) {
     if let Some(kind) = request.kind {
         match kind {
+            OpenRequestKind::WitchcraftAuthCallback { url } => {
+                zed::auth_manager::AuthManager::handle_callback_global(url, cx);
+            }
             OpenRequestKind::CliConnection(connection) => {
                 cx.spawn(async move |cx| handle_cli_connection(connection, app_state, cx).await)
                     .detach();

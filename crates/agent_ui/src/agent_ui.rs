@@ -19,6 +19,7 @@ mod terminal_codegen;
 mod terminal_inline_assistant;
 mod text_thread_editor;
 mod ui;
+pub mod witchcraft_agent_status_item;
 
 use std::rc::Rc;
 use std::sync::Arc;

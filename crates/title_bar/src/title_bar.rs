@@ -35,7 +35,7 @@ use project::{
 };
 use remote::RemoteConnectionOptions;
 use settings::{Settings, SettingsLocation};
-use std::sync::Arc;
+use std::{fs, path::PathBuf, sync::Arc};
 use theme::ActiveTheme;
 use title_bar_settings::TitleBarSettings;
 use ui::{
@@ -54,6 +54,24 @@ pub use stories::*;
 const MAX_PROJECT_NAME_LENGTH: usize = 40;
 const MAX_BRANCH_NAME_LENGTH: usize = 40;
 const MAX_SHORT_SHA_LENGTH: usize = 8;
+
+fn witchcraft_credentials() -> Option<(String, Option<String>)> {
+    let config_dir = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("witchcraft");
+    let config_file = config_dir.join("credentials.json");
+
+    let contents = fs::read_to_string(config_file).ok()?;
+    let creds: serde_json::Value = serde_json::from_str(&contents).ok()?;
+
+    let email = creds["email"].as_str().map(ToOwned::to_owned);
+    let full_name = creds["full_name"].as_str().map(ToOwned::to_owned);
+    let avatar_url = creds["avatar_url"].as_str().map(ToOwned::to_owned);
+
+    let display_name = full_name.or(email)?;
+
+    Some((display_name, avatar_url))
+}
 
 actions!(
     collab,
@@ -779,7 +797,20 @@ impl TitleBar {
         }
     }
 
-    pub fn render_sign_in_button(&mut self, _: &mut Context<Self>) -> Button {
+    pub fn render_sign_in_button(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        if let Some((display_name, avatar_url)) = witchcraft_credentials() {
+            let avatar = avatar_url
+                .map(|url| Avatar::new(url).size(rems(1.0)))
+                .map(|avatar| avatar.into_any_element());
+
+            return h_flex()
+                .gap_1()
+                .items_center()
+                .children(avatar)
+                .child(Label::new(display_name).size(LabelSize::Small))
+                .into_any_element();
+        }
+
         let client = self.client.clone();
         Button::new("sign_in", "Sign In")
             .label_size(LabelSize::Small)
@@ -794,6 +825,7 @@ impl TitleBar {
                     })
                     .detach();
             })
+            .into_any_element()
     }
 
     pub fn render_user_menu_button(&mut self, cx: &mut Context<Self>) -> impl Element {

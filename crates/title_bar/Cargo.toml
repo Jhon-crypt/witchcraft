@@ -35,6 +35,7 @@ chrono.workspace = true
 client.workspace = true
 cloud_llm_client.workspace = true
 db.workspace = true
+dirs.workspace = true
 gpui = { workspace = true, features = ["screen-capture"] }
 notifications.workspace = true
 project.workspace = true
@@ -42,6 +43,7 @@ remote.workspace = true
 rpc.workspace = true
 schemars.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 settings.workspace = true
 smallvec.workspace = true
 story = { workspace = true, optional = true }

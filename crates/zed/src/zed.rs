@@ -5,6 +5,7 @@ pub mod edit_prediction_registry;
 pub(crate) mod mac_only_instance;
 mod migrate;
 mod open_listener;
+mod witchcraft_access_modal;
 mod quick_action_bar;
 #[cfg(target_os = "windows")]
 pub(crate) mod windows_only_instance;
@@ -78,6 +79,7 @@ use util::markdown::MarkdownString;
 use util::rel_path::RelPath;
 use util::{ResultExt, asset_str};
 use uuid::Uuid;
+use witchcraft_access_modal::WitchcraftAccessCodeModal;
 use vim_mode_setting::VimModeSetting;
 use workspace::notifications::{
     NotificationId, SuppressEvent, dismiss_app_notification, show_app_notification,
@@ -223,6 +225,11 @@ pub fn init(cx: &mut App) {
     .on_action(|_: &OpenAccountSettings, cx| {
         with_active_or_new_workspace(cx, |_, _, cx| {
             cx.open_url(&zed_urls::account_url(cx));
+        });
+    })
+    .on_action(|_: &zed_actions::OpenAccessCodeModal, cx| {
+        with_active_or_new_workspace(cx, |workspace, window, cx| {
+            WitchcraftAccessCodeModal::toggle(workspace, window, cx);
         });
     })
     .on_action(|_: &OpenTasks, cx| {

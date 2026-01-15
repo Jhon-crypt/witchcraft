@@ -1,9 +1,9 @@
-use crate::{item::{Item, ItemEvent}, Workspace, ModalView};
+use crate::{item::{Item, ItemEvent}, Workspace};
 use gpui::{
-    App, Context, DismissEvent, EventEmitter, FocusHandle, Focusable, FontWeight, ParentElement,
-    Render, Styled, WeakEntity, Window, actions,
+    Action, App, Context, EventEmitter, FocusHandle, Focusable, FontWeight, ParentElement, Render,
+    Styled, WeakEntity, Window, actions,
 };
-use ui::{AlertModal, prelude::*, Button, ButtonStyle, IconName, Label, LabelSize, Vector, VectorName};
+use ui::{prelude::*, Button, ButtonStyle, IconName, Label, LabelSize, Vector, VectorName};
 
 actions!(
     witchcraft,
@@ -36,18 +36,15 @@ impl WelcomeFile {
     }
 
     fn sign_in(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        log::info!("WelcomeFile: Sign in with GitHub clicked");
         // Open browser for OAuth
         let oauth_url = "https://witchcraft.insanelabs.org/auth/editor";
         if let Err(e) = open::that(oauth_url) {
             log::error!("Failed to open browser for OAuth: {}", e);
         }
 
-        // Show the access code modal in the center of the editor.
-        if let Some(workspace) = self.workspace.upgrade() {
-            workspace.update(cx, |workspace, cx| {
-                WitchcraftAccessCodeModal::toggle(workspace, window, cx);
-            });
-        }
+        // Ask the app (zed crate) to open the access code modal.
+        window.dispatch_action(zed_actions::OpenAccessCodeModal.boxed_clone(), cx);
     }
 }
 
@@ -200,106 +197,6 @@ impl Render for WelcomeFile {
                                             .color(Color::Muted),
                                     ),
                             ),
-                    ),
-            )
-    }
-}
-
-/// Simple centered modal prompting the user for their GitHub access code.
-pub struct WitchcraftAccessCodeModal {
-    focus_handle: FocusHandle,
-}
-
-impl WitchcraftAccessCodeModal {
-    pub fn toggle(
-        workspace: &mut Workspace,
-        window: &mut Window,
-        cx: &mut Context<Workspace>,
-    ) {
-        workspace.toggle_modal(window, cx, |window, cx| Self::new(window, cx));
-    }
-
-    fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
-        Self { focus_handle: cx.focus_handle() }
-    }
-
-    fn on_continue(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        // The access code will be wired up in a later change.
-        cx.emit(DismissEvent);
-    }
-
-    fn on_cancel(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        cx.emit(DismissEvent);
-    }
-}
-
-impl EventEmitter<DismissEvent> for WitchcraftAccessCodeModal {}
-
-impl Focusable for WitchcraftAccessCodeModal {
-    fn focus_handle(&self, _cx: &App) -> FocusHandle {
-        self.focus_handle.clone()
-    }
-}
-
-impl ModalView for WitchcraftAccessCodeModal {}
-
-impl Render for WitchcraftAccessCodeModal {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        AlertModal::new("witchcraft-access-code-modal")
-            .title("Enter your access code")
-            .width(rems(28.0))
-            .child(
-                Label::new(
-                    "After signing in with GitHub, paste the access code here to link Witchcraft.",
-                )
-                .size(LabelSize::Small)
-                .color(Color::Muted),
-            )
-            .child(
-                v_flex()
-                    .gap_1()
-                    .mt_2()
-                    .child(
-                        Label::new("Access code")
-                            .size(LabelSize::Small)
-                            .color(Color::Muted),
-                    )
-                    .child(
-                        h_flex()
-                            .w_full()
-                            .min_h_8()
-                            .px_2()
-                            .py_1p5()
-                            .rounded_xl()
-                            .border_1()
-                            .border_color(cx.theme().colors().border_variant)
-                            .bg(cx.theme().colors().editor_background)
-                            .child(
-                                Label::new("Paste access code from browser…")
-                                    .size(LabelSize::Small)
-                                    .color(Color::Muted),
-                            ),
-                    ),
-            )
-            .footer(
-                h_flex()
-                    .p_3()
-                    .items_center()
-                    .justify_end()
-                    .gap_1()
-                    .child(
-                        Button::new("cancel-access-code", "Cancel")
-                            .style(ButtonStyle::Subtle)
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.on_cancel(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new("continue-access-code", "Continue")
-                            .style(ButtonStyle::Filled)
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.on_continue(window, cx);
-                            })),
                     ),
             )
     }

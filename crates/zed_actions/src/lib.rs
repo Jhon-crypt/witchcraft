@@ -72,6 +72,8 @@ actions!(
         OpenPerformanceProfiler,
         /// Opens the onboarding view.
         OpenOnboarding,
+        /// Opens the Witchcraft access code modal used to finish editor sign-in.
+        OpenAccessCodeModal,
     ]
 );
 

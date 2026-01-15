@@ -1,4 +1,8 @@
 use gpui::{App, AppContext, Context, Entity, EventEmitter, Global};
+use http_client::{AsyncBody, Request};
+use reqwest_client::ReqwestClient;
+use std::sync::Arc;
+use futures::AsyncReadExt;
 use serde::{Deserialize, Serialize};
 
 const WITCHCRAFT_WEB_URL: &str = "https://witchcraft.insanelabs.org";
@@ -10,6 +14,8 @@ pub struct AuthState {
     pub email: Option<String>,
     pub api_key: Option<String>,
     pub github_username: Option<String>,
+    pub full_name: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 impl Default for AuthState {
@@ -19,6 +25,8 @@ impl Default for AuthState {
             email: None,
             api_key: None,
             github_username: None,
+            full_name: None,
+            avatar_url: None,
         }
     }
 }
@@ -56,11 +64,26 @@ impl AuthManager {
         cx.set_global(AuthManagerGlobal { manager });
     }
 
+    /// Returns the global `AuthManager` entity if it has been initialized.
+    pub fn global_entity(cx: &App) -> Option<Entity<AuthManager>> {
+        cx.try_global::<AuthManagerGlobal>().map(|g| g.manager.clone())
+    }
+
     pub fn handle_callback_global(url: String, cx: &mut App) {
         if let Some(auth_global) = cx.try_global::<AuthManagerGlobal>() {
             let manager = auth_global.manager.clone();
             manager.update(cx, |auth: &mut AuthManager, cx| {
                 auth.handle_callback(&url, cx);
+            });
+        }
+    }
+
+    /// Global helper to start sign-in using an access code pasted into the editor.
+    pub fn sign_in_with_access_code_global(access_code: String, cx: &mut App) {
+        if let Some(auth_global) = cx.try_global::<AuthManagerGlobal>() {
+            let manager = auth_global.manager.clone();
+            let _ = manager.update(cx, |auth: &mut AuthManager, cx| {
+                auth.sign_in_with_access_code(access_code, cx);
             });
         }
     }
@@ -78,6 +101,188 @@ impl AuthManager {
         } else {
             log::info!("Browser opened for GitHub sign in...");
         }
+    }
+
+    /// Exchange an editor access code for an API key and user profile.
+    ///
+    /// This is used when the user pastes an access code from the browser into the editor.
+    pub fn sign_in_with_access_code(&mut self, access_code: String, cx: &mut Context<Self>) {
+        if access_code.trim().is_empty() {
+            cx.emit(AuthEvent::AuthError(
+                "Access code cannot be empty".to_string(),
+            ));
+            return;
+        }
+
+        let access_code = access_code.trim().to_string();
+        let url = format!("{}/api/editor-access-login", WITCHCRAFT_WEB_URL);
+        log::info!("Starting Witchcraft access-code sign in against {}", url);
+
+        // Build HTTP client using the shared Reqwest-based implementation.
+        let http: Arc<dyn http_client::HttpClient> = Arc::new(ReqwestClient::new());
+
+        cx.spawn(async move |handle, cx| {
+            // Build JSON body
+            let body_bytes = match serde_json::to_vec(&serde_json::json!({ "accessCode": access_code })) {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    log::error!("Failed to serialize access code body: {e}");
+                    if let Some(manager) = handle.upgrade() {
+                        manager
+                            .update(cx, |_, cx| {
+                                cx.emit(AuthEvent::AuthError(
+                                    "Failed to prepare access code request".to_string(),
+                                ));
+                            })
+                            .ok();
+                    }
+                    return;
+                }
+            };
+
+            // Build HTTP request
+            let request = match Request::post(&url)
+                .header("Content-Type", "application/json")
+                .body(AsyncBody::from(body_bytes))
+            {
+                Ok(req) => req,
+                Err(e) => {
+                    log::error!("Failed to build access code request: {e}");
+                    if let Some(manager) = handle.upgrade() {
+                        manager
+                            .update(cx, |_, cx| {
+                                cx.emit(AuthEvent::AuthError(
+                                    "Failed to build access code request".to_string(),
+                                ));
+                            })
+                            .ok();
+                    }
+                    return;
+                }
+            };
+
+            // Send request
+            let mut response = match http.send(request).await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    log::error!("Access code sign-in request failed: {e}");
+                    if let Some(manager) = handle.upgrade() {
+                        manager
+                            .update(cx, |_, cx| {
+                                cx.emit(AuthEvent::AuthError(
+                                    "Failed to contact access code endpoint".to_string(),
+                                ));
+                            })
+                            .ok();
+                    }
+                    return;
+                }
+            };
+
+            // Read response body
+            let mut body = Vec::new();
+            if let Err(e) = response.body_mut().read_to_end(&mut body).await {
+                log::error!("Failed to read access code response body: {e}");
+                if let Some(manager) = handle.upgrade() {
+                    manager
+                        .update(cx, |_, cx| {
+                            cx.emit(AuthEvent::AuthError(
+                                "Failed to read access code response".to_string(),
+                            ));
+                        })
+                        .ok();
+                }
+                return;
+            }
+
+            // Handle non-success status
+            if !response.status().is_success() {
+                log::warn!(
+                    "Access code sign-in failed with HTTP status {} and body: {}",
+                    response.status(),
+                    String::from_utf8_lossy(&body)
+                );
+                if let Some(manager) = handle.upgrade() {
+                    manager
+                        .update(cx, |_, cx| {
+                            cx.emit(AuthEvent::AuthError(
+                                "Invalid or revoked access code".to_string(),
+                            ));
+                        })
+                        .ok();
+                }
+                return;
+            }
+
+            // Parse JSON body
+            let json: serde_json::Value = match serde_json::from_slice(&body) {
+                Ok(v) => v,
+                Err(e) => {
+                    log::error!("Failed to parse access code response JSON: {e}");
+                    if let Some(manager) = handle.upgrade() {
+                        manager
+                            .update(cx, |_, cx| {
+                                cx.emit(AuthEvent::AuthError(
+                                    "Invalid response from access code endpoint".to_string(),
+                                ));
+                            })
+                            .ok();
+                    }
+                    return;
+                }
+            };
+
+            if let Some(manager) = handle.upgrade() {
+                manager
+                    .update(cx, |this, cx| {
+                        let user = &json["user"];
+                        let api_key =
+                            user["id"].as_str().unwrap_or_default().to_string();
+                        let email =
+                            user["email"].as_str().map(|s: &str| s.to_string());
+                        let github_username = user["github_username"]
+                            .as_str()
+                            .map(|s: &str| s.to_string());
+                        let full_name =
+                            user["full_name"].as_str().map(|s: &str| s.to_string());
+                        let avatar_url =
+                            user["avatar_url"].as_str().map(|s: &str| s.to_string());
+
+                        if api_key.is_empty() {
+                            cx.emit(AuthEvent::AuthError(
+                                "Invalid response from access code endpoint".to_string(),
+                            ));
+                            return;
+                        }
+
+                        this.save_credentials(
+                            &api_key,
+                            email.as_deref(),
+                            github_username.as_deref(),
+                            full_name.as_deref(),
+                            avatar_url.as_deref(),
+                        );
+
+                        this.state.is_authenticated = true;
+                        this.state.api_key = Some(api_key);
+                        this.state.email = email;
+                        this.state.github_username = github_username;
+                        this.state.full_name = full_name;
+                        this.state.avatar_url = avatar_url;
+
+                        log::info!(
+                            "Access code sign-in succeeded for email {:?}, github_username {:?}",
+                            this.state.email,
+                            this.state.github_username
+                        );
+
+                        cx.emit(AuthEvent::SignedIn);
+                        cx.notify();
+                    })
+                    .ok();
+            }
+        })
+        .detach();
     }
 
     pub fn handle_callback(&mut self, url: &str, cx: &mut Context<Self>) {
@@ -103,7 +308,13 @@ impl AuthManager {
             let github_username = params.get("github_username").cloned();
 
             if let Some(key) = api_key {
-                self.save_credentials(&key, email.as_deref(), github_username.as_deref());
+                self.save_credentials(
+                    &key,
+                    email.as_deref(),
+                    github_username.as_deref(),
+                    None,
+                    None,
+                );
 
                 self.state.is_authenticated = true;
                 self.state.api_key = Some(key);
@@ -144,6 +355,8 @@ impl AuthManager {
         api_key: &str,
         email: Option<&str>,
         github_username: Option<&str>,
+        full_name: Option<&str>,
+        avatar_url: Option<&str>,
     ) {
         let config_dir = dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -159,6 +372,8 @@ impl AuthManager {
             "api_key": api_key,
             "email": email,
             "github_username": github_username,
+            "full_name": full_name,
+            "avatar_url": avatar_url,
         });
 
         if let Ok(json) = serde_json::to_string_pretty(&credentials) {
@@ -180,12 +395,16 @@ impl AuthManager {
                 let api_key = creds["api_key"].as_str().map(String::from);
                 let email = creds["email"].as_str().map(String::from);
                 let github_username = creds["github_username"].as_str().map(String::from);
+                let full_name = creds["full_name"].as_str().map(String::from);
+                let avatar_url = creds["avatar_url"].as_str().map(String::from);
 
                 if api_key.is_some() {
                     self.state.is_authenticated = true;
                     self.state.api_key = api_key;
                     self.state.email = email;
                     self.state.github_username = github_username;
+                    self.state.full_name = full_name;
+                    self.state.avatar_url = avatar_url;
                     cx.notify();
                 }
             }

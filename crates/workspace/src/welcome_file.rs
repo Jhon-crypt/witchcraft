@@ -177,25 +177,6 @@ impl Render for WelcomeFile {
                                                     )),
                                             ),
                                     ),
-                            )
-                            .child(
-                                v_flex()
-                                    .gap_2()
-                                    .mt_6()
-                                    .pt_6()
-                                    .border_t_1()
-                                    .border_color(cx.theme().colors().border)
-                                    .child(
-                                        Label::new("💡 Pro Tip")
-                                            .size(LabelSize::Small)
-                                            .weight(FontWeight::SEMIBOLD)
-                                            .color(Color::Accent),
-                                    )
-                                    .child(
-                                        Label::new("You can always access the agent with Cmd+/ (Mac) or Ctrl+/ (Windows/Linux)")
-                                            .size(LabelSize::Small)
-                                            .color(Color::Muted),
-                                    ),
                             ),
                     ),
             )

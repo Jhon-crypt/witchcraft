@@ -38,6 +38,7 @@ use settings::{Settings, SettingsLocation};
 use std::{fs, path::PathBuf, sync::Arc};
 use theme::ActiveTheme;
 use title_bar_settings::TitleBarSettings;
+use log;
 use ui::{
     Avatar, ButtonLike, Chip, ContextMenu, IconWithIndicator, Indicator, PopoverMenu,
     PopoverMenuHandle, TintColor, Tooltip, prelude::*,
@@ -797,7 +798,7 @@ impl TitleBar {
         }
     }
 
-    pub fn render_sign_in_button(&mut self, cx: &mut Context<Self>) -> AnyElement {
+    pub fn render_sign_in_button(&mut self, _cx: &mut Context<Self>) -> AnyElement {
         if let Some((display_name, avatar_url)) = witchcraft_credentials() {
             let avatar = avatar_url
                 .map(|url| Avatar::new(url).size(rems(1.0)))
@@ -811,19 +812,17 @@ impl TitleBar {
                 .into_any_element();
         }
 
-        let client = self.client.clone();
         Button::new("sign_in", "Sign In")
             .label_size(LabelSize::Small)
             .on_click(move |_, window, cx| {
-                let client = client.clone();
-                window
-                    .spawn(cx, async move |cx| {
-                        client
-                            .sign_in_with_optional_connect(true, cx)
-                            .await
-                            .notify_async_err(cx);
-                    })
-                    .detach();
+                let oauth_url = "https://witchcraft.insanelabs.org/auth/editor";
+                if let Err(e) = open::that(oauth_url) {
+                    log::error!("Failed to open browser for OAuth: {}", e);
+                } else {
+                    log::info!("Browser opened for GitHub sign in...");
+                }
+
+                window.dispatch_action(zed_actions::OpenAccessCodeModal.boxed_clone(), cx);
             })
             .into_any_element()
     }

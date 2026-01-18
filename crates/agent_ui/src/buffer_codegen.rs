@@ -877,9 +877,9 @@ impl CodegenAlternative {
                         }
                         codegen.edits.extend(edits);
                         codegen.line_operations = line_ops;
+                        // Update edit_position - no notify here to prevent flickering
+                        // Buffer updates will trigger notifications naturally
                         codegen.edit_position = Some(snapshot.anchor_after(edit_start));
-
-                        cx.notify();
                     })?;
                 }
 
@@ -970,11 +970,23 @@ impl CodegenAlternative {
         edits: impl IntoIterator<Item = (Range<Anchor>, String)>,
         cx: &mut Context<CodegenAlternative>,
     ) {
+        let edits: Vec<_> = edits.into_iter().collect();
+        
+        // Update edit_position immediately based on the edits being applied
+        // for real-time gutter indicator updates
+        if let Some(last_edit) = edits.last() {
+            let snapshot = self.snapshot.clone();
+            // Calculate the end position after the edit is applied
+            let edit_end_offset = last_edit.0.end.to_offset(&snapshot) + last_edit.1.len();
+            // Update edit_position to immediately reflect applied edits
+            self.edit_position = Some(snapshot.anchor_after(edit_end_offset));
+        }
+        
         let transaction = self.buffer.update(cx, |buffer, cx| {
             // Avoid grouping agent edits with user edits.
             buffer.finalize_last_transaction(cx);
             buffer.start_transaction(cx);
-            buffer.edit(edits, None, cx);
+            buffer.edit(edits.iter().cloned(), None, cx);
             buffer.end_transaction(cx)
         });
 
@@ -990,6 +1002,9 @@ impl CodegenAlternative {
                     .update(cx, |buffer, cx| buffer.finalize_last_transaction(cx));
             }
         }
+        
+        // Don't notify here - buffer updates trigger notifications naturally
+        // This prevents excessive flickering during rapid edits
     }
 
     fn reapply_line_based_diff(

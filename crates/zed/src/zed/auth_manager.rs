@@ -13,6 +13,7 @@ pub struct AuthState {
     pub is_authenticated: bool,
     pub email: Option<String>,
     pub api_key: Option<String>,
+    pub access_code: Option<String>,
     pub github_username: Option<String>,
     pub full_name: Option<String>,
     pub avatar_url: Option<String>,
@@ -24,6 +25,7 @@ impl Default for AuthState {
             is_authenticated: false,
             email: None,
             api_key: None,
+            access_code: None,
             github_username: None,
             full_name: None,
             avatar_url: None,
@@ -115,15 +117,17 @@ impl AuthManager {
         }
 
         let access_code = access_code.trim().to_string();
+        let access_code_for_storage = access_code.clone();
         let url = format!("{}/api/editor-access-login", WITCHCRAFT_WEB_URL);
         log::info!("Starting Witchcraft access-code sign in against {}", url);
 
         // Build HTTP client using the shared Reqwest-based implementation.
         let http: Arc<dyn http_client::HttpClient> = Arc::new(ReqwestClient::new());
 
+        let access_code_for_closure = access_code.clone();
         cx.spawn(async move |handle, cx| {
             // Build JSON body
-            let body_bytes = match serde_json::to_vec(&serde_json::json!({ "accessCode": access_code })) {
+            let body_bytes = match serde_json::to_vec(&serde_json::json!({ "accessCode": access_code_for_closure })) {
                 Ok(bytes) => bytes,
                 Err(e) => {
                     log::error!("Failed to serialize access code body: {e}");
@@ -233,6 +237,7 @@ impl AuthManager {
             };
 
             if let Some(manager) = handle.upgrade() {
+                let access_code_to_store = access_code_for_storage.clone();
                 manager
                     .update(cx, |this, cx| {
                         let user = &json["user"];
@@ -257,6 +262,7 @@ impl AuthManager {
 
                         this.save_credentials(
                             &api_key,
+                            Some(&access_code_to_store),
                             email.as_deref(),
                             github_username.as_deref(),
                             full_name.as_deref(),
@@ -265,6 +271,7 @@ impl AuthManager {
 
                         this.state.is_authenticated = true;
                         this.state.api_key = Some(api_key);
+                        this.state.access_code = Some(access_code_to_store);
                         this.state.email = email;
                         this.state.github_username = github_username;
                         this.state.full_name = full_name;
@@ -310,6 +317,7 @@ impl AuthManager {
             if let Some(key) = api_key {
                 self.save_credentials(
                     &key,
+                    None, // OAuth callback doesn't have access code
                     email.as_deref(),
                     github_username.as_deref(),
                     None,
@@ -353,6 +361,7 @@ impl AuthManager {
     fn save_credentials(
         &self,
         api_key: &str,
+        access_code: Option<&str>,
         email: Option<&str>,
         github_username: Option<&str>,
         full_name: Option<&str>,
@@ -370,6 +379,7 @@ impl AuthManager {
         let config_file = config_dir.join("credentials.json");
         let credentials = serde_json::json!({
             "api_key": api_key,
+            "access_code": access_code,
             "email": email,
             "github_username": github_username,
             "full_name": full_name,
@@ -393,6 +403,7 @@ impl AuthManager {
         if let Ok(contents) = std::fs::read_to_string(config_file) {
             if let Ok(creds) = serde_json::from_str::<serde_json::Value>(&contents) {
                 let api_key = creds["api_key"].as_str().map(String::from);
+                let access_code = creds["access_code"].as_str().map(String::from);
                 let email = creds["email"].as_str().map(String::from);
                 let github_username = creds["github_username"].as_str().map(String::from);
                 let full_name = creds["full_name"].as_str().map(String::from);
@@ -401,6 +412,7 @@ impl AuthManager {
                 if api_key.is_some() {
                     self.state.is_authenticated = true;
                     self.state.api_key = api_key;
+                    self.state.access_code = access_code;
                     self.state.email = email;
                     self.state.github_username = github_username;
                     self.state.full_name = full_name;

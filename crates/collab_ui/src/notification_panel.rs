@@ -11,7 +11,10 @@ use gpui::{
     ListScrollEvent, ListState, ParentElement, Render, StatefulInteractiveElement, Styled, Task,
     WeakEntity, Window, actions, div, img, list, px,
 };
-use notifications::{NotificationEntry, NotificationEvent, NotificationStore};
+use notifications::{
+    NotificationEntry, NotificationEvent, NotificationStore, WitchcraftNotification,
+    WitchcraftNotificationClient,
+};
 use project::Fs;
 use rpc::proto;
 use serde::{Deserialize, Serialize};
@@ -19,7 +22,7 @@ use settings::{Settings, SettingsStore};
 use std::{sync::Arc, time::Duration};
 use time::{OffsetDateTime, UtcOffset};
 use ui::{
-    Avatar, Button, Icon, IconButton, IconName, Label, Tab, Tooltip, h_flex, prelude::*, v_flex,
+    Avatar, Button, Icon, IconButton, IconName, Label, LabelSize, SpinnerLabel, Tab, Tooltip, h_flex, prelude::*, v_flex,
 };
 use util::{ResultExt, TryFutureExt};
 use workspace::notifications::{
@@ -40,6 +43,10 @@ pub struct NotificationPanel {
     user_store: Entity<UserStore>,
     channel_store: Entity<ChannelStore>,
     notification_store: Entity<NotificationStore>,
+    witchcraft_client: Arc<WitchcraftNotificationClient>,
+    witchcraft_connection: Option<Task<Result<()>>>,
+    witchcraft_notifications: Vec<WitchcraftNotification>,
+    witchcraft_sender: Option<futures::channel::mpsc::UnboundedSender<notifications::WitchcraftOutgoingMessage>>,
     fs: Arc<dyn Fs>,
     width: Option<Pixels>,
     active: bool,
@@ -52,6 +59,9 @@ pub struct NotificationPanel {
     focus_handle: FocusHandle,
     mark_as_read_tasks: HashMap<u64, Task<Result<()>>>,
     unseen_notifications: Vec<NotificationEntry>,
+    witchcraft_connected: bool,
+    witchcraft_handler_task: Option<Task<()>>, // Keep the handler task alive
+    witchcraft_connecting: bool, // Track connection state for loading indicator
 }
 
 #[derive(Serialize, Deserialize)]
@@ -131,6 +141,8 @@ impl NotificationPanel {
             ));
 
             let local_offset = chrono::Local::now().offset().local_minus_utc();
+            let http_client = cx.http_client();
+            let witchcraft_client = Arc::new(WitchcraftNotificationClient::new(http_client));
             let mut this = Self {
                 fs,
                 client,
@@ -138,6 +150,10 @@ impl NotificationPanel {
                 local_timezone: UtcOffset::from_whole_seconds(local_offset).unwrap(),
                 channel_store: ChannelStore::global(cx),
                 notification_store: NotificationStore::global(cx),
+                witchcraft_client: witchcraft_client.clone(),
+                witchcraft_connection: None,
+                witchcraft_notifications: Vec::new(),
+                witchcraft_sender: None,
                 notification_list,
                 pending_serialization: Task::ready(None),
                 workspace: workspace_handle,
@@ -148,7 +164,132 @@ impl NotificationPanel {
                 mark_as_read_tasks: HashMap::default(),
                 width: None,
                 unseen_notifications: Vec::new(),
+                witchcraft_connected: false,
+                witchcraft_handler_task: None,
+                witchcraft_connecting: false,
             };
+            
+            // Auto-connect to witchcraft notifications on startup
+            let witchcraft_client_clone = witchcraft_client.clone();
+            let entity_clone = cx.entity();
+            cx.defer(move |cx| {
+                let witchcraft_client = witchcraft_client_clone.clone();
+                let entity = entity_clone.clone();
+                // Get access code from credentials file
+                let credentials_path = dirs::config_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("witchcraft")
+                    .join("credentials.json");
+                
+                let access_code = std::fs::read_to_string(&credentials_path)
+                    .ok()
+                    .and_then(|contents| {
+                        serde_json::from_str::<serde_json::Value>(&contents).ok()
+                    })
+                    .and_then(|creds| {
+                        creds["access_code"].as_str().map(String::from)
+                    });
+                
+                if let Some(access_code) = access_code {
+                    entity.update(cx, |this, cx| {
+                        this.witchcraft_connecting = true;
+                        cx.notify();
+                    });
+                    
+                    // Trigger the connect button logic programmatically
+                    // We'll reuse the existing connect button handler
+                    let connect_task = witchcraft_client.connect_with_access_code(access_code, cx);
+                    if let Ok(task) = connect_task {
+                        let entity_for_task = entity.clone();
+                        cx.spawn(async move |cx| {
+                            match task.await {
+                                Ok(connection) => {
+                                    entity_for_task.update(cx, |this, cx| {
+                                        this.witchcraft_connecting = false;
+                                        let (mut messages, sender, task) = connection.spawn(cx);
+                                        this.witchcraft_sender = Some(sender);
+                                        this.witchcraft_handler_task = Some(task);
+                                        cx.notify();
+                                        
+                                        // Start message receiver loop for auto-connect
+                                        let entity_for_loop = entity_for_task.clone();
+                                        let workspace_handle = this.workspace.clone();
+                                        cx.spawn(async move |_this, cx| {
+                                            log::info!("[Witchcraft NotificationPanel] Auto-connected, starting message receiver loop");
+                                            while let Some(message_result) = messages.next().await {
+                                                match message_result {
+                                                    Ok(message) => {
+                                                        entity_for_loop.update(cx, |this, cx| {
+                                                            match message {
+                                                                notifications::WitchcraftMessage::Connected { user_id, method, .. } => {
+                                                                    log::info!("[Witchcraft NotificationPanel] Auto-connected - user_id: {}, method: {:?}", user_id, method);
+                                                                    this.witchcraft_connected = true;
+                                                                    cx.notify();
+                                                                }
+                                                                notifications::WitchcraftMessage::UnreadNotifications { count, notifications, .. } => {
+                                                                    log::info!("[Witchcraft NotificationPanel] Received {} unread notifications on auto-connect", count);
+                                                                    for notif in notifications {
+                                                                        if !this.witchcraft_notifications.iter().any(|n| n.id == notif.id) {
+                                                                            this.witchcraft_notifications.push(notif);
+                                                                        }
+                                                                    }
+                                                                    cx.notify();
+                                                                }
+                                                                notifications::WitchcraftMessage::Notification { event, data, .. } => {
+                                                                    log::info!("[Witchcraft NotificationPanel] New notification - event: {}, id: {}", event, data.id);
+                                                                    // Deduplicate by notification ID
+                                                                    if !this.witchcraft_notifications.iter().any(|n| n.id == data.id) {
+                                                                        this.witchcraft_notifications.push(data.clone());
+                                                                        // Show toast notification for new messages via workspace
+                                                                        let workspace_handle_for_toast = workspace_handle.clone();
+                                                                        let toast_data = data.clone();
+                                                                        if let Some(workspace) = workspace_handle_for_toast.upgrade() {
+                                                                            let _ = workspace.update(cx, |workspace, cx| {
+                                                                                workspace.show_toast(
+                                                                                    workspace::Toast::new(
+                                                                                        workspace::notifications::NotificationId::unique::<Self>(),
+                                                                                        format!("{}: {}", toast_data.title, toast_data.message),
+                                                                                    )
+                                                                                    .autohide(),
+                                                                                    cx,
+                                                                                );
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                    cx.notify();
+                                                                }
+                                                                notifications::WitchcraftMessage::Pong => {
+                                                                    // Silently handle pong
+                                                                }
+                                                            }
+                                                        }).ok();
+                                                    }
+                                                    Err(e) => {
+                                                        log::error!("[Witchcraft NotificationPanel] Error receiving message: {}", e);
+                                                    }
+                                                }
+                                            }
+                                            log::warn!("[Witchcraft NotificationPanel] Auto-connect message receiver loop ended");
+                                        }).detach();
+                                    }).ok();
+                                }
+                                Err(e) => {
+                                    log::error!("[Witchcraft NotificationPanel] Auto-connect failed: {}", e);
+                                    entity_for_task.update(cx, |this, cx| {
+                                        this.witchcraft_connecting = false;
+                                        cx.notify();
+                                    }).ok();
+                                }
+                            }
+                        }).detach();
+                    } else {
+                        entity.update(cx, |this, cx| {
+                            this.witchcraft_connecting = false;
+                            cx.notify();
+                        });
+                    }
+                }
+            });
 
             let mut old_dock_position = this.position(window, cx);
             this.subscriptions.extend([
@@ -344,6 +485,91 @@ impl NotificationPanel {
         )
     }
 
+    fn render_witchcraft_notification(
+        &self,
+        ix: usize,
+        notif: &WitchcraftNotification,
+        cx: &App,
+    ) -> AnyElement {
+        // Parse the created_at timestamp
+        let timestamp = time::OffsetDateTime::parse(&notif.created_at, &time::format_description::well_known::Rfc3339)
+            .ok()
+            .unwrap_or_else(|| time::OffsetDateTime::now_utc());
+        
+        let now = OffsetDateTime::now_utc();
+        let relative_timestamp = time_format::format_localized_timestamp(
+            timestamp,
+            now,
+            self.local_timezone,
+            time_format::TimestampFormat::Relative,
+        );
+        
+        let absolute_timestamp = time_format::format_localized_timestamp(
+            timestamp,
+            now,
+            self.local_timezone,
+            time_format::TimestampFormat::Absolute,
+        );
+        
+        // Determine icon based on notification type
+        let icon_name = match notif.notification_type.as_str() {
+            "success" => IconName::Check,
+            "warning" => IconName::Warning,
+            "error" => IconName::XCircle,
+            _ => IconName::Info,
+        };
+        
+        div()
+            .id(format!("witchcraft_{}", ix))
+            .flex()
+            .flex_row()
+            .size_full()
+            .px_2()
+            .py_1()
+            .gap_2()
+            .hover(|style| style.bg(cx.theme().colors().element_hover))
+            .child(
+                Icon::new(icon_name)
+                    .color(Color::Muted)
+            )
+            .child(
+                v_flex()
+                    .gap_1()
+                    .size_full()
+                    .overflow_hidden()
+                    .child(Label::new(notif.title.clone()).size(LabelSize::Small))
+                    .child(Label::new(notif.message.clone()).color(Color::Muted).size(LabelSize::Small))
+                    .child(
+                        h_flex()
+                            .child(
+                                div()
+                                    .id("witchcraft_notification_timestamp")
+                                    .hover(|style| {
+                                        style
+                                            .bg(cx.theme().colors().element_selected)
+                                            .rounded_sm()
+                                    })
+                                    .child(Label::new(relative_timestamp).color(Color::Muted).size(LabelSize::Small))
+                                    .tooltip(move |_, cx| {
+                                        Tooltip::simple(absolute_timestamp.clone(), cx)
+                                    }),
+                            )
+                            .when_some(notif.action_url.clone(), |this, url| {
+                                this.child(
+                                    Button::new(format!("action_{}", ix), notif.action_label.as_ref().unwrap_or(&"View".to_string()))
+                                        .on_click({
+                                            let url = url.clone();
+                                            move |_, _, _| {
+                                                log::info!("Opening action URL: {}", url);
+                                            }
+                                        })
+                                )
+                            }),
+                    ),
+            )
+            .into_any()
+    }
+
     fn present_notification(
         &self,
         entry: &NotificationEntry,
@@ -530,40 +756,246 @@ impl Render for NotificationPanel {
                     .child(Icon::new(IconName::Envelope)),
             )
             .map(|this| {
-                if !self.client.status().borrow().is_connected() {
+                let show_connect = !self.client.status().borrow().is_connected()
+                    && !self.witchcraft_connected
+                    && !self.witchcraft_connecting;
+                let show_witchcraft_connect = !self.witchcraft_connected && !self.witchcraft_connecting;
+                let show_witchcraft_loading = self.witchcraft_connecting;
+
+                if show_connect || show_witchcraft_connect || show_witchcraft_loading {
                     this.child(
                         v_flex()
                             .gap_2()
                             .p_4()
-                            .child(
-                                Button::new("connect_prompt_button", "Connect")
-                                    .icon_color(Color::Muted)
-                                    .icon(IconName::Github)
-                                    .icon_position(IconPosition::Start)
-                                    .style(ButtonStyle::Filled)
-                                    .full_width()
-                                    .on_click({
-                                        let client = self.client.clone();
-                                        move |_, window, cx| {
-                                            let client = client.clone();
-                                            window
-                                                .spawn(cx, async move |cx| {
-                                                    match client.connect(true, cx).await {
-                                                        util::ConnectionResult::Timeout => {
-                                                            log::error!("Connection timeout");
-                                                        }
-                                                        util::ConnectionResult::ConnectionReset => {
-                                                            log::error!("Connection reset");
-                                                        }
-                                                        util::ConnectionResult::Result(r) => {
-                                                            r.log_err();
-                                                        }
+                            .when(show_witchcraft_loading, |this| {
+                                this.child(
+                                    v_flex()
+                                        .gap_2()
+                                        .items_center()
+                                        .child(
+                                            SpinnerLabel::new()
+                                                .color(Color::Muted)
+                                        )
+                                        .child(
+                                            Label::new("Connecting to notifications...")
+                                                .color(Color::Muted)
+                                                .size(LabelSize::Small)
+                                        )
+                                )
+                            })
+                            .when(show_witchcraft_connect, |this| {
+                                this.child(
+                                    Button::new("connect_witchcraft_button", "Connect")
+                                        .icon_color(Color::Muted)
+                                        .icon(IconName::Bell)
+                                        .icon_position(IconPosition::Start)
+                                        .style(ButtonStyle::Filled)
+                                        .full_width()
+                                        .on_click({
+                                            let witchcraft_client = self.witchcraft_client.clone();
+                                            let entity = cx.entity();
+                                            move |_, window, cx| {
+                                                let witchcraft_client = witchcraft_client.clone();
+                                                let entity = entity.clone();
+                                                
+                                                // Get access code from credentials file (stored after login)
+                                                let credentials_path = dirs::config_dir()
+                                                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                                                    .join("witchcraft")
+                                                    .join("credentials.json");
+                                                
+                                                let access_code = std::fs::read_to_string(&credentials_path)
+                                                    .ok()
+                                                    .and_then(|contents| {
+                                                        serde_json::from_str::<serde_json::Value>(&contents).ok()
+                                                    })
+                                                    .and_then(|creds| {
+                                                        creds["access_code"].as_str().map(String::from)
+                                                    });
+                                                
+                                                let Some(access_code) = access_code else {
+                                                    log::error!("Not authenticated. Please sign in first.");
+                                                    return;
+                                                };
+                                                
+                                                let connect_task = match witchcraft_client.connect_with_access_code(access_code, cx) {
+                                                    Ok(task) => task,
+                                                    Err(e) => {
+                                                        log::error!("Failed to start connection: {}", e);
+                                                        return;
                                                     }
-                                                })
-                                                .detach()
-                                        }
-                                    }),
-                            )
+                                                };
+                                                window
+                                                    .spawn(cx, async move |cx| {
+                                                        match connect_task.await {
+                                                            Ok(connection) => {
+                                                                cx.update(|_, cx| {
+                                                                    let (mut messages, sender, task) =
+                                                                        connection.spawn(cx);
+                                                                    // Store the task in the entity to keep the handler alive
+                                                                    // If the task is dropped, the handler will be cancelled and the stream will end
+                                                                    entity.update(cx, |this, cx| {
+                                                                        this.witchcraft_handler_task = Some(task);
+                                                                        cx.notify();
+                                                                    });
+                                                                    let entity = entity.clone();
+                                                                    let entity_for_sender = entity.clone();
+                                                                    entity_for_sender.update(cx, |this, cx| {
+                                                                        this.witchcraft_sender = Some(sender);
+                                                                        cx.notify();
+                                                                    });
+                                                                    log::info!("[Witchcraft NotificationPanel] Starting message receiver loop - connection will stay open");
+                                                                    log::info!("[Witchcraft NotificationPanel] Message stream created, waiting for messages...");
+                                                                    cx.spawn(async move |cx| {
+                                                                    log::info!("[Witchcraft NotificationPanel] Message receiver task started");
+                                                                    while let Some(
+                                                                        message_result,
+                                                                    ) = messages.next().await
+                                                                    {
+                                                                        log::debug!("[Witchcraft NotificationPanel] Got message from stream");
+                                                                        match message_result {
+                                                                            Ok(message) => {
+                                                                                log::info!("[Witchcraft NotificationPanel] Processing message: {:?}", message);
+                                                                                entity
+                                                                                    .update(
+                                                                                        cx,
+                                                                                        |this,
+                                                                                         cx| {
+                                                                                            match message
+                                                                                            {
+                                                                                                notifications::WitchcraftMessage::Connected {
+                                                                                                    user_id,
+                                                                                                    method,
+                                                                                                    ..
+                                                                                                } => {
+                                                                                                    log::info!(
+                                                                                                        "[Witchcraft NotificationPanel] Connected - user_id: {}, method: {:?} - KEEPING CONNECTION OPEN",
+                                                                                                        user_id,
+                                                                                                        method
+                                                                                                    );
+                                                                                                    this.witchcraft_connected =
+                                                                                                        true;
+                                                                                                    cx.notify();
+                                                                                                    // Connection stays open - do NOT close here
+                                                                                                }
+                                                                                                notifications::WitchcraftMessage::UnreadNotifications {
+                                                                                                    count,
+                                                                                                    notifications,
+                                                                                                    ..
+                                                                                                } => {
+                                                                                                    log::info!(
+                                                                                                        "[Witchcraft NotificationPanel] Received {} unread notifications - KEEPING CONNECTION OPEN",
+                                                                                                        count
+                                                                                                    );
+                                                                                                    // Deduplicate by notification ID to avoid duplicates
+                                                                                                    for notif in notifications {
+                                                                                                        if !this.witchcraft_notifications.iter().any(|n| n.id == notif.id) {
+                                                                                                            this.witchcraft_notifications.push(notif);
+                                                                                                        }
+                                                                                                    }
+                                                                                                    cx.notify();
+                                                                                                    // Connection stays open - do NOT close here
+                                                                                                }
+                                                                                                notifications::WitchcraftMessage::Notification {
+                                                                                                    event,
+                                                                                                    data,
+                                                                                                    ..
+                                                                                                } => {
+                                                                                                    log::info!(
+                                                                                                        "[Witchcraft NotificationPanel] New notification - event: {}, id: {} - KEEPING CONNECTION OPEN",
+                                                                                                        event,
+                                                                                                        data.id
+                                                                                                    );
+                                                                                                    // Deduplicate by notification ID
+                                                                                                    if !this.witchcraft_notifications.iter().any(|n| n.id == data.id) {
+                                                                                                        this.witchcraft_notifications.push(data.clone());
+                                                                                                        // Show toast notification for new messages via workspace
+                                                                                                        let workspace_handle = this.workspace.clone();
+                                                                                                        let toast_data = data.clone();
+                                                                                                        if let Some(workspace) = workspace_handle.upgrade() {
+                                                                                                            let _ = workspace.update(cx, |workspace, cx| {
+                                                                                                                workspace.show_toast(
+                                                                                                                    workspace::Toast::new(
+                                                                                                                        workspace::notifications::NotificationId::unique::<Self>(),
+                                                                                                                        format!("{}: {}", toast_data.title, toast_data.message),
+                                                                                                                    )
+                                                                                                                    .autohide(),
+                                                                                                                    cx,
+                                                                                                                );
+                                                                                                            });
+                                                                                                        }
+                                                                                                    }
+                                                                                                    cx.notify();
+                                                                                                    // Connection stays open - do NOT close here
+                                                                                                }
+                                                                                                notifications::WitchcraftMessage::Pong => {
+                                                                                                    log::debug!("[Witchcraft NotificationPanel] Received pong (keep-alive response)");
+                                                                                                    // Silently handle pong (keep-alive response)
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                    )
+                                                                                    .ok();
+                                                                            }
+                                                                            Err(e) => {
+                                                                                log::error!(
+                                                                                    "[Witchcraft NotificationPanel] Error receiving message: {} - KEEPING CONNECTION OPEN",
+                                                                                                                    e
+                                                                                                                );
+                                                                                                                // Don't break on error - keep connection open
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    log::warn!("[Witchcraft NotificationPanel] Message receiver loop ended - connection may have closed");
+                                                                    })
+                                                                    .detach();
+                                                                })
+                                                                .ok();
+                                                            }
+                                                            Err(e) => {
+                                                                log::error!(
+                                                                    "Failed to connect: {}",
+                                                                    e
+                                                                );
+                                                            }
+                                                        }
+                                                    })
+                                                    .detach();
+                                            }
+                                        }),
+                                )
+                            })
+                            .when(show_connect, |this| {
+                                this.child(
+                                    Button::new("connect_prompt_button", "Connect")
+                                        .icon_color(Color::Muted)
+                                        .icon(IconName::Github)
+                                        .icon_position(IconPosition::Start)
+                                        .style(ButtonStyle::Filled)
+                                        .full_width()
+                                        .on_click({
+                                            let client = self.client.clone();
+                                            move |_, window, cx| {
+                                                let client = client.clone();
+                                                window
+                                                    .spawn(cx, async move |cx| {
+                                                        match client.connect(true, cx).await {
+                                                            util::ConnectionResult::Timeout => {
+                                                                log::error!("Connection timeout");
+                                                            }
+                                                            util::ConnectionResult::ConnectionReset => {
+                                                                log::error!("Connection reset");
+                                                            }
+                                                            util::ConnectionResult::Result(r) => {
+                                                                r.log_err();
+                                                            }
+                                                        }
+                                                    })
+                                                    .detach()
+                                            }
+                                        }),
+                                )
+                            })
                             .child(
                                 div().flex().w_full().items_center().child(
                                     Label::new("Connect to view notifications.")
@@ -572,7 +1004,9 @@ impl Render for NotificationPanel {
                                 ),
                             ),
                     )
-                } else if self.notification_list.item_count() == 0 {
+                } else if self.notification_list.item_count() == 0
+                    && self.witchcraft_notifications.is_empty()
+                {
                     this.child(
                         v_flex().p_4().child(
                             div().flex().w_full().items_center().child(
@@ -583,15 +1017,35 @@ impl Render for NotificationPanel {
                         ),
                     )
                 } else {
+                    let witchcraft_count = self.witchcraft_notifications.len();
+                    let regular_count = self.notification_list.item_count();
+                    
                     this.child(
-                        list(
-                            self.notification_list.clone(),
-                            cx.processor(|this, ix, window, cx| {
-                                this.render_notification(ix, window, cx)
-                                    .unwrap_or_else(|| div().into_any())
-                            }),
-                        )
-                        .size_full(),
+                        v_flex()
+                            .size_full()
+                            .child(
+                                // Render witchcraft notifications first
+                                v_flex()
+                                    .children(self.witchcraft_notifications.iter().enumerate().map(|(ix, notif)| {
+                                        self.render_witchcraft_notification(ix, notif, cx)
+                                    }))
+                            )
+                            .child(
+                                // Then render regular notifications in a list
+                                if regular_count > 0 {
+                                    list(
+                                        self.notification_list.clone(),
+                                        cx.processor(|this, ix, window, cx| {
+                                            this.render_notification(ix, window, cx)
+                                                .unwrap_or_else(|| div().into_any())
+                                        }),
+                                    )
+                                    .size_full()
+                                    .into_any()
+                                } else {
+                                    div().into_any()
+                                }
+                            )
                     )
                 }
             })

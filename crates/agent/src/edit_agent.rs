@@ -184,33 +184,73 @@ impl EditAgent {
                 .ok();
         })?;
 
-        while let Some(event) = parse_rx.next().await {
-            match event? {
-                CreateFileParserEvent::NewTextChunk { chunk } => {
-                    let buffer_id = cx.update(|cx| {
-                        buffer.update(cx, |buffer, cx| buffer.append(chunk, cx));
-                        self.action_log
-                            .update(cx, |log, cx| log.buffer_edited(buffer.clone(), cx));
-                        self.project.update(cx, |project, cx| {
-                            project.set_agent_location(
-                                Some(AgentLocation {
-                                    buffer: buffer.downgrade(),
-                                    position: language::Anchor::max_for_buffer(
-                                        buffer.read(cx).remote_id(),
-                                    ),
-                                }),
-                                cx,
-                            )
-                        });
-                        buffer.read(cx).remote_id()
-                    })?;
-                    output_events_tx
-                        .unbounded_send(EditAgentOutputEvent::Edited(
-                            Anchor::min_max_range_for_buffer(buffer_id),
-                        ))
-                        .ok();
+        // Batch chunks when creating files to reduce flickering
+        // Collect chunks and append in larger batches for smoother updates
+        let mut chunk_buffer = String::new();
+        // Use larger batches (128 chunks) for file creation to minimize flickering
+        let mut chunks = parse_rx.ready_chunks(128);
+        
+        while let Some(events) = chunks.next().await {
+            for event in events {
+                match event? {
+                    CreateFileParserEvent::NewTextChunk { chunk } => {
+                        chunk_buffer.push_str(&chunk);
+                    }
                 }
             }
+            
+            // Append batched chunks to reduce flickering
+            if !chunk_buffer.is_empty() {
+                let chunk_to_append = mem::take(&mut chunk_buffer);
+                let buffer_id = cx.update(|cx| {
+                    buffer.update(cx, |buffer, cx| buffer.append(chunk_to_append.as_str(), cx));
+                    self.action_log
+                        .update(cx, |log, cx| log.buffer_edited(buffer.clone(), cx));
+                    self.project.update(cx, |project, cx| {
+                        project.set_agent_location(
+                            Some(AgentLocation {
+                                buffer: buffer.downgrade(),
+                                position: language::Anchor::max_for_buffer(
+                                    buffer.read(cx).remote_id(),
+                                ),
+                            }),
+                            cx,
+                        )
+                    });
+                    buffer.read(cx).remote_id()
+                })?;
+                output_events_tx
+                    .unbounded_send(EditAgentOutputEvent::Edited(
+                        Anchor::min_max_range_for_buffer(buffer_id),
+                    ))
+                    .ok();
+            }
+        }
+        
+        // Append any remaining chunks
+        if !chunk_buffer.is_empty() {
+            let buffer_id = cx.update(|cx| {
+                buffer.update(cx, |buffer, cx| buffer.append(chunk_buffer.as_str(), cx));
+                self.action_log
+                    .update(cx, |log, cx| log.buffer_edited(buffer.clone(), cx));
+                self.project.update(cx, |project, cx| {
+                    project.set_agent_location(
+                        Some(AgentLocation {
+                            buffer: buffer.downgrade(),
+                            position: language::Anchor::max_for_buffer(
+                                buffer.read(cx).remote_id(),
+                            ),
+                        }),
+                        cx,
+                    )
+                });
+                buffer.read(cx).remote_id()
+            })?;
+            output_events_tx
+                .unbounded_send(EditAgentOutputEvent::Edited(
+                    Anchor::min_max_range_for_buffer(buffer_id),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -331,9 +371,12 @@ impl EditAgent {
             };
 
             // Compute edits in the background and apply them as they become
-            // available.
+            // available. Use small batches for fast, real-time updates with minimal flickering.
             let (compute_edits, edits) =
                 Self::compute_edits(snapshot, resolved_old_text, edit_events, cx);
+            
+            // Apply edits in larger batches (32 edits) to reduce flickering
+            // Buffer updates will still appear smooth but with fewer render cycles
             let mut edits = edits.ready_chunks(32);
             while let Some(edits) = edits.next().await {
                 if edits.is_empty() {

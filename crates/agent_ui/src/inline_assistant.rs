@@ -1355,8 +1355,6 @@ impl InlineAssistant {
     }
 
     fn update_editor_highlights(&self, editor: &Entity<Editor>, cx: &mut App) {
-        let mut gutter_pending_ranges = Vec::new();
-        let mut gutter_transformed_ranges = Vec::new();
         let mut foreground_ranges = Vec::new();
         let mut inserted_row_ranges = Vec::new();
         let empty_assist_ids = Vec::new();
@@ -1370,21 +1368,7 @@ impl InlineAssistant {
         for assist_id in assist_ids {
             if let Some(assist) = self.assists.get(assist_id) {
                 let codegen = assist.codegen.read(cx);
-                let buffer = codegen.buffer(cx).read(cx).read(cx);
                 foreground_ranges.extend(codegen.last_equal_ranges(cx).iter().cloned());
-
-                let pending_range =
-                    codegen.edit_position(cx).unwrap_or(assist.range.start)..assist.range.end;
-                if pending_range.end.to_offset(&buffer) > pending_range.start.to_offset(&buffer) {
-                    gutter_pending_ranges.push(pending_range);
-                }
-
-                if let Some(edit_position) = codegen.edit_position(cx) {
-                    let edited_range = assist.range.start..edit_position;
-                    if edited_range.end.to_offset(&buffer) > edited_range.start.to_offset(&buffer) {
-                        gutter_transformed_ranges.push(edited_range);
-                    }
-                }
 
                 if assist.decorations.is_some() {
                     inserted_row_ranges
@@ -1395,30 +1379,12 @@ impl InlineAssistant {
 
         let snapshot = editor.read(cx).buffer().read(cx).snapshot(cx);
         merge_ranges(&mut foreground_ranges, &snapshot);
-        merge_ranges(&mut gutter_pending_ranges, &snapshot);
-        merge_ranges(&mut gutter_transformed_ranges, &snapshot);
         editor.update(cx, |editor, cx| {
+            // Clear any existing gutter highlights to prevent flickering
             enum GutterPendingRange {}
-            if gutter_pending_ranges.is_empty() {
-                editor.clear_gutter_highlights::<GutterPendingRange>(cx);
-            } else {
-                editor.highlight_gutter::<GutterPendingRange>(
-                    gutter_pending_ranges,
-                    |cx| cx.theme().status().info_background,
-                    cx,
-                )
-            }
-
+            editor.clear_gutter_highlights::<GutterPendingRange>(cx);
             enum GutterTransformedRange {}
-            if gutter_transformed_ranges.is_empty() {
-                editor.clear_gutter_highlights::<GutterTransformedRange>(cx);
-            } else {
-                editor.highlight_gutter::<GutterTransformedRange>(
-                    gutter_transformed_ranges,
-                    |cx| cx.theme().status().info,
-                    cx,
-                )
-            }
+            editor.clear_gutter_highlights::<GutterTransformedRange>(cx);
 
             if foreground_ranges.is_empty() {
                 editor.clear_highlights::<InlineAssist>(cx);
